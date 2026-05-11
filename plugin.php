@@ -28,6 +28,18 @@ if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
 	require __DIR__ . '/vendor/autoload.php';
 }
 
+require_once __DIR__ . '/src/Schema/tables.php';
+register_activation_hook( STARTER_AI_PLUGIN_FILE, 'starter_ai_install_tables' );
+add_action(
+	'plugins_loaded',
+	static function () {
+		if ( get_option( 'starter_ai_db_version' ) !== STARTER_AI_VERSION ) {
+			starter_ai_install_tables();
+		}
+	},
+	5
+);
+
 add_action(
 	'plugins_loaded',
 	static function () {
