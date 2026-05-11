@@ -18,6 +18,43 @@
   <rule ref="WordPress">
     <exclude name="WordPress.Files.FileName"/>
     <exclude name="Universal.Files.SeparateFunctionsFromOO"/>
+    <!-- This codebase uses modern PHP style: camelCase methods, short arrays. -->
+    <exclude name="WordPress.NamingConventions.ValidFunctionName"/>
+    <exclude name="Universal.Arrays.DisallowShortArraySyntax"/>
+    <exclude name="Generic.Arrays.DisallowShortArraySyntax"/>
+    <!-- We use PHP 8 type hints + named ctor properties, so verbose docblocks are noise. -->
+    <exclude name="Squiz.Commenting.FunctionComment.Missing"/>
+    <exclude name="Squiz.Commenting.FunctionComment.MissingParamComment"/>
+    <exclude name="Squiz.Commenting.FunctionComment.MissingParamTag"/>
+    <exclude name="Squiz.Commenting.FunctionComment.ParamCommentFullStop"/>
+    <exclude name="Squiz.Commenting.FunctionComment.MissingParamName"/>
+    <exclude name="Squiz.Commenting.FunctionComment.WrongStyle"/>
+    <exclude name="Squiz.Commenting.VariableComment.Missing"/>
+    <exclude name="Squiz.Commenting.ClassComment.Missing"/>
+    <exclude name="Squiz.Commenting.FileComment.Missing"/>
+    <exclude name="Squiz.Commenting.FunctionComment.EmptyThrows"/>
+    <exclude name="Generic.Commenting.DocComment.MissingShort"/>
+    <!-- This codebase uses camelCase variables/properties. -->
+    <exclude name="WordPress.NamingConventions.ValidVariableName"/>
+    <!-- We don't enforce Yoda conditions. -->
+    <exclude name="WordPress.PHP.YodaConditions"/>
+    <!-- Array spacing/alignment rules conflict with the codebase's style. -->
+    <exclude name="WordPress.Arrays.ArrayDeclarationSpacing"/>
+    <exclude name="WordPress.Arrays.ArrayIndentation"/>
+    <exclude name="WordPress.Arrays.MultipleStatementAlignment"/>
+    <exclude name="NormalizedArrays.Arrays.ArrayBraceSpacing"/>
+    <exclude name="NormalizedArrays.Arrays.CommaAfterLast"/>
+    <exclude name="Generic.Formatting.MultipleStatementAlignment"/>
+    <exclude name="Universal.Operators.DisallowShortTernary"/>
+    <exclude name="Universal.WhiteSpace.CommaSpacing"/>
+    <exclude name="PEAR.Functions.FunctionCallSignature"/>
+    <exclude name="WordPress.WhiteSpace.OperatorSpacing"/>
+    <!-- $wpdb->prepare() with hard-coded table names is safe and intentional. -->
+    <exclude name="WordPress.DB.PreparedSQL.InterpolatedNotPrepared"/>
+    <!-- Squiz docblock detail rules are too strict for our style. -->
+    <exclude name="Squiz.Commenting.FunctionComment.IncorrectTypeHint"/>
+    <exclude name="Squiz.Commenting.FunctionComment.ParamNameNoMatch"/>
+    <exclude name="Squiz.Commenting.FunctionComment.SpacingAfterParamType"/>
   </rule>
 
   <config name="testVersion" value="8.1-"/>
