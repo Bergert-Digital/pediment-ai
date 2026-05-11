@@ -32,6 +32,7 @@ final class Bootstrap {
 			'rest_api_init',
 			static function () {
 				( new \StarterAi\Rest\ComposeController() )->register();
+				( new \StarterAi\Rest\EditController() )->register();
 			}
 		);
 
