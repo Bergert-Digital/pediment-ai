@@ -29,10 +29,27 @@ final class Bootstrap {
 		} );
 
 		add_filter( 'starter_ai_provider', static function ( $default ) {
-			if ( defined( 'STARTER_AI_MOCK' ) && STARTER_AI_MOCK ) {
-				return new \StarterAi\Mock\MockProvider( __DIR__ . '/Mock/fixtures' );
+			$mock_const   = defined( 'STARTER_AI_MOCK' ) && STARTER_AI_MOCK;
+			$mock_setting = (bool) ( new \StarterAi\Settings\OptionsStore() )->get( 'mock_mode', false );
+			if ( $mock_const || $mock_setting ) {
+				return new \StarterAi\Mock\MockProvider( STARTER_AI_PLUGIN_DIR . '/src/Mock/fixtures' );
 			}
 			return $default;
+		} );
+
+		( new \StarterAi\Settings\Page() )->register();
+
+		add_filter( 'starter_ai_model_compose', static function ( $default ) {
+			$val = ( new \StarterAi\Settings\OptionsStore() )->get( 'model_compose', '' );
+			return '' !== $val ? $val : $default;
+		} );
+		add_filter( 'starter_ai_model_edit', static function ( $default ) {
+			$val = ( new \StarterAi\Settings\OptionsStore() )->get( 'model_compose', '' );
+			return '' !== $val ? $val : $default;
+		} );
+		add_filter( 'starter_ai_model_refine', static function ( $default ) {
+			$val = ( new \StarterAi\Settings\OptionsStore() )->get( 'model_refine', '' );
+			return '' !== $val ? $val : $default;
 		} );
 
 		add_action(
