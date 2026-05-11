@@ -23,6 +23,9 @@ final class Bootstrap {
 	 * @return void
 	 */
 	public function register(): void {
-		// Hooks wired in subsequent tasks.
+		add_filter( 'register_block_type_args', static function ( $args ) {
+			\StarterAi\Anthropic\SchemaBuilder::invalidate();
+			return $args;
+		} );
 	}
 }
