@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<phpunit
+  bootstrap="tests/phpunit/bootstrap.php"
+  backupGlobals="false"
+  colors="true"
+  beStrictAboutCoversAnnotation="true"
+  beStrictAboutOutputDuringTests="true"
+  beStrictAboutTestsThatDoNotTestAnything="false"
+  verbose="true">
+  <testsuites>
+    <testsuite name="plugin">
+      <directory>tests/phpunit/</directory>
+    </testsuite>
+  </testsuites>
+</phpunit>
