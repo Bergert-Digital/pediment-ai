@@ -34,6 +34,11 @@ final class RefineController {
 	}
 
 	public function handle( \WP_REST_Request $request ) {
+		$limits = (array) get_option( 'starter_ai_rate_limits', \StarterAi\Usage\RateLimiter::DEFAULTS );
+		if ( ! ( new \StarterAi\Usage\RateLimiter( $limits ) )->consume( get_current_user_id(), 'refine' ) ) {
+			return new \WP_Error( 'starter_ai_rate_limited', __( 'Rate limit reached. Try again later.', 'starter-ai' ), [ 'status' => 429 ] );
+		}
+
 		$block_name  = (string) $request->get_param( 'blockName' );
 		$attributes  = $request->get_param( 'attributes' );
 		$inner       = $request->get_param( 'innerBlocks' );

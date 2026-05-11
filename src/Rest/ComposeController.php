@@ -34,6 +34,11 @@ final class ComposeController {
 	}
 
 	public function handle( \WP_REST_Request $request ) {
+		$limits = (array) get_option( 'starter_ai_rate_limits', \StarterAi\Usage\RateLimiter::DEFAULTS );
+		if ( ! ( new \StarterAi\Usage\RateLimiter( $limits ) )->consume( get_current_user_id(), 'compose' ) ) {
+			return new \WP_Error( 'starter_ai_rate_limited', __( 'Rate limit reached. Try again later.', 'starter-ai' ), [ 'status' => 429 ] );
+		}
+
 		$prompt    = trim( (string) $request->get_param( 'prompt' ) );
 		$page_type = sanitize_key( (string) $request->get_param( 'page_type' ) );
 		$tone      = sanitize_text_field( (string) $request->get_param( 'tone' ) );
