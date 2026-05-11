@@ -16,7 +16,7 @@
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
-    exit;
+	exit;
 }
 
 define( 'STARTER_AI_VERSION', '0.1.0' );
@@ -25,11 +25,14 @@ define( 'STARTER_AI_PLUGIN_DIR', __DIR__ );
 define( 'STARTER_AI_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
 if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
-    require __DIR__ . '/vendor/autoload.php';
+	require __DIR__ . '/vendor/autoload.php';
 }
 
-add_action( 'plugins_loaded', static function () {
-    if ( class_exists( '\\StarterAi\\Bootstrap' ) ) {
-        ( new \StarterAi\Bootstrap() )->register();
-    }
-} );
+add_action(
+	'plugins_loaded',
+	static function () {
+		if ( class_exists( '\\StarterAi\\Bootstrap' ) ) {
+			( new \StarterAi\Bootstrap() )->register();
+		}
+	}
+);

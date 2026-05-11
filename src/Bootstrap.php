@@ -1,14 +1,28 @@
 <?php
+/**
+ * Bootstrap class for the Starter AI plugin.
+ *
+ * @package StarterAi
+ */
+
 declare(strict_types=1);
 
 namespace StarterAi;
 
 if ( ! defined( 'ABSPATH' ) ) {
-    exit;
+	exit;
 }
 
+/**
+ * Wires the plugin's hooks, REST routes, and settings page.
+ */
 final class Bootstrap {
-    public function register(): void {
-        // Hooks wired in subsequent tasks.
-    }
+	/**
+	 * Registers hooks. Called on plugins_loaded.
+	 *
+	 * @return void
+	 */
+	public function register(): void {
+		// Hooks wired in subsequent tasks.
+	}
 }
