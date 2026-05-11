@@ -56,3 +56,4 @@ npm run env:start    # http://localhost:8898 (admin/password)
 Mock mode is on by default in `.wp-env.json` (`STARTER_AI_MOCK=true`), so the plugin returns fixture responses instead of calling Anthropic. Toggle off in plugin settings to test against real Anthropic.
 
 See [docs/prompts.md](docs/prompts.md) for prompt tuning and [docs/privacy.md](docs/privacy.md) for data-handling disclosures clients should include in their privacy policies.
+# WP-Starter-AI
