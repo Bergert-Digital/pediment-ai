@@ -45,10 +45,14 @@ final class Bootstrap {
 				return;
 			}
 			$asset = include $asset_path;
+			// Drop any deps WP doesn't register on this install; otherwise WP silently skips our script.
+			$deps = array_values( array_filter( $asset['dependencies'] ?? [], static function ( $handle ) {
+				return wp_script_is( $handle, 'registered' );
+			} ) );
 			wp_enqueue_script(
 				'starter-ai-editor',
 				STARTER_AI_PLUGIN_URL . 'build/index.js',
-				$asset['dependencies'] ?? [],
+				$deps,
 				$asset['version'] ?? STARTER_AI_VERSION,
 				true
 			);
