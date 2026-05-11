@@ -1,0 +1,13 @@
+{
+  "model": "mock",
+  "usage": { "input_tokens": 0, "output_tokens": 0 },
+  "content": [
+    { "type": "tool_use", "id": "tu_mock_services", "name": "emit_page", "input": { "blocks": [
+      { "name": "starter/hero", "attributes": { "variant": "split", "headline": "Services", "subheadline": "End-to-end product marketing sites." }, "innerBlocks": [] },
+      { "name": "starter/cta",  "attributes": { "title": "What we do", "body": "Strategy, design, build, ship.", "primaryText": "Book a call", "primaryUrl": "/contact" }, "innerBlocks": [] },
+      { "name": "starter/faq",  "attributes": {}, "innerBlocks": [
+        { "name": "starter/faq-item", "attributes": { "question": "Do you redesign existing sites?", "answer": "Yes — half our work is refresh, not greenfield." }, "innerBlocks": [] }
+      ] }
+    ] } }
+  ]
+}

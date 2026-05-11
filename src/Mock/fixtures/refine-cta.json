@@ -1,0 +1,10 @@
+{
+  "model": "mock",
+  "usage": { "input_tokens": 0, "output_tokens": 0 },
+  "content": [
+    { "type": "tool_use", "id": "tu_refine_cta", "name": "emit_block", "input": {
+      "attributes": { "title": "Don't wait", "body": "Five minutes to a quote.", "primaryText": "Book", "primaryUrl": "/contact" },
+      "innerBlocks": []
+    } }
+  ]
+}

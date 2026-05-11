@@ -1,0 +1,21 @@
+{
+  "model": "mock",
+  "usage": { "input_tokens": 0, "output_tokens": 0 },
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "tu_mock_landing",
+      "name": "emit_page",
+      "input": {
+        "blocks": [
+          { "name": "starter/hero", "attributes": { "variant": "centered", "headline": "Welcome", "subheadline": "A clear, benefit-led promise.", "ctaText": "Get started", "ctaUrl": "/contact" }, "innerBlocks": [] },
+          { "name": "starter/cta",  "attributes": { "title": "Ready to start?", "body": "Tell us about your project.", "primaryText": "Contact us", "primaryUrl": "/contact" }, "innerBlocks": [] },
+          { "name": "starter/faq",  "attributes": {}, "innerBlocks": [
+            { "name": "starter/faq-item", "attributes": { "question": "How long does a project take?", "answer": "Most engagements run 4–8 weeks." }, "innerBlocks": [] },
+            { "name": "starter/faq-item", "attributes": { "question": "What's your pricing?", "answer": "Fixed-scope sprints or monthly retainer." }, "innerBlocks": [] }
+          ] }
+        ]
+      }
+    }
+  ]
+}

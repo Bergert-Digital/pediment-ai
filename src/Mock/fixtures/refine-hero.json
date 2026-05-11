@@ -1,0 +1,10 @@
+{
+  "model": "mock",
+  "usage": { "input_tokens": 0, "output_tokens": 0 },
+  "content": [
+    { "type": "tool_use", "id": "tu_refine_hero", "name": "emit_block", "input": {
+      "attributes": { "headline": "Punchier headline", "subheadline": "Tighter sub.", "ctaText": "Start now", "ctaUrl": "/contact" },
+      "innerBlocks": []
+    } }
+  ]
+}

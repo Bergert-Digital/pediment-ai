@@ -1,0 +1,9 @@
+{
+  "model": "mock",
+  "usage": { "input_tokens": 0, "output_tokens": 0 },
+  "content": [
+    { "type": "tool_use", "id": "tu_edit_shorten", "name": "emit_page", "input": { "blocks": [
+      { "name": "starter/hero", "attributes": { "headline": "Shorter." }, "innerBlocks": [] }
+    ] } }
+  ]
+}

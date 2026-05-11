@@ -1,0 +1,13 @@
+{
+  "model": "mock",
+  "usage": { "input_tokens": 0, "output_tokens": 0 },
+  "content": [
+    { "type": "tool_use", "id": "tu_mock_about", "name": "emit_page", "input": { "blocks": [
+      { "name": "starter/hero", "attributes": { "variant": "default", "headline": "About us", "subheadline": "Who we are and how we work." }, "innerBlocks": [] },
+      { "name": "starter/prose", "attributes": {}, "innerBlocks": [
+        { "name": "core/paragraph", "attributes": { "content": "We help product teams ship better marketing sites." }, "innerBlocks": [] }
+      ] },
+      { "name": "starter/stat", "attributes": { "value": "40+", "label": "Sites shipped", "context": "since 2021" }, "innerBlocks": [] }
+    ] } }
+  ]
+}

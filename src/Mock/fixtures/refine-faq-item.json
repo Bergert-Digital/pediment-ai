@@ -1,0 +1,10 @@
+{
+  "model": "mock",
+  "usage": { "input_tokens": 0, "output_tokens": 0 },
+  "content": [
+    { "type": "tool_use", "id": "tu_refine_faq_item", "name": "emit_block", "input": {
+      "attributes": { "question": "Tighter question?", "answer": "Tighter answer." },
+      "innerBlocks": []
+    } }
+  ]
+}
