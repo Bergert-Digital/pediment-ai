@@ -44,6 +44,14 @@ final class StatusController {
 			return new \WP_Error( 'starter_ai_forbidden', __( 'Not your job.', 'starter-ai' ), [ 'status' => 403 ] );
 		}
 
+		// Dev-only: wp-env's loopback to siteurl fails from inside the container, so WP-Cron
+		// never fires and Action Scheduler's recurring runner stays idle. When debugging,
+		// drain the AS queue inline so polling actually makes progress.
+		if ( 'queued' === $job['status'] && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			do_action( 'action_scheduler_run_queue', 'StarterAi inline drain' );
+			$job = ( new JobStore() )->getById( $id );
+		}
+
 		$urls = array_values( array_filter( array_column( $job['events'], 'url_fetched' ) ) );
 		return new \WP_REST_Response(
 			[

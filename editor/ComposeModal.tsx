@@ -1,5 +1,5 @@
 import { Modal, Button, TextareaControl, SelectControl, RadioControl, Spinner } from '@wordpress/components';
-import { useState } from '@wordpress/element';
+import { useState, useEffect, useRef } from '@wordpress/element';
 import { dispatch } from '@wordpress/data';
 import { parse } from '@wordpress/blocks';
 import { __ } from '@wordpress/i18n';
@@ -16,6 +16,19 @@ export default function ComposeModal({ onClose }: { onClose: () => void }) {
   const [submitErr, setSubmitErr] = useState<string | null>(null);
 
   const { status, urls, progressNote, result, error } = useJobPolling(jobId);
+  const appliedRef = useRef(false);
+
+  useEffect(() => {
+    if (!result || appliedRef.current) return;
+    appliedRef.current = true;
+    const parsed = parse(serializeTree(result.blocks));
+    if (target === 'replace') {
+      (dispatch('core/block-editor') as any).resetBlocks(parsed);
+    } else {
+      (dispatch('core/block-editor') as any).insertBlocks(parsed);
+    }
+    onClose();
+  }, [result, target, onClose]);
 
   const submit = async () => {
     setSubmitErr(null);
@@ -27,19 +40,7 @@ export default function ComposeModal({ onClose }: { onClose: () => void }) {
     }
   };
 
-  if (result) {
-    const blockTree = result.blocks;
-    const markup    = serializeTree(blockTree);
-    const parsed    = parse(markup);
-
-    if (target === 'replace') {
-      (dispatch('core/block-editor') as any).resetBlocks(parsed);
-    } else {
-      (dispatch('core/block-editor') as any).insertBlocks(parsed);
-    }
-    onClose();
-    return null;
-  }
+  if (result) return null;
 
   return (
     <Modal title={__('Compose with AI', 'starter-ai')} onRequestClose={onClose} className="starter-ai__modal">

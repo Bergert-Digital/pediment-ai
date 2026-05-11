@@ -28,6 +28,12 @@ if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
 	require __DIR__ . '/vendor/autoload.php';
 }
 
+// Action Scheduler's procedural API (as_schedule_single_action etc.) is registered
+// by its bootstrap file, which Composer's autoloader does not execute.
+if ( file_exists( __DIR__ . '/vendor/woocommerce/action-scheduler/action-scheduler.php' ) ) {
+	require_once __DIR__ . '/vendor/woocommerce/action-scheduler/action-scheduler.php';
+}
+
 require_once __DIR__ . '/src/Schema/tables.php';
 register_activation_hook( STARTER_AI_PLUGIN_FILE, 'starter_ai_install_tables' );
 add_action(

@@ -1,5 +1,5 @@
 import { Modal, Button, TextareaControl, Spinner, Notice } from '@wordpress/components';
-import { useState } from '@wordpress/element';
+import { useState, useEffect, useRef } from '@wordpress/element';
 import { select, dispatch } from '@wordpress/data';
 import { parse } from '@wordpress/blocks';
 import { __ } from '@wordpress/i18n';
@@ -13,6 +13,14 @@ export default function EditModal({ onClose }: { onClose: () => void }) {
   const [submitErr,   setSubmitErr]   = useState<string | null>(null);
 
   const { status, urls, progressNote, result, error } = useJobPolling(jobId);
+  const appliedRef = useRef(false);
+
+  useEffect(() => {
+    if (!result || appliedRef.current) return;
+    appliedRef.current = true;
+    (dispatch('core/block-editor') as any).resetBlocks(parse(serializeTree(result.blocks)));
+    onClose();
+  }, [result, onClose]);
 
   const submit = async () => {
     setSubmitErr(null);
@@ -26,12 +34,7 @@ export default function EditModal({ onClose }: { onClose: () => void }) {
     }
   };
 
-  if (result) {
-    const markup = serializeTree(result.blocks);
-    (dispatch('core/block-editor') as any).resetBlocks(parse(markup));
-    onClose();
-    return null;
-  }
+  if (result) return null;
 
   return (
     <Modal title={__('Edit with AI', 'starter-ai')} onRequestClose={onClose}>

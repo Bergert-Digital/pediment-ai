@@ -1,9 +1,16 @@
-import { PluginDocumentSettingPanel } from '@wordpress/editor';
+import { PluginDocumentSettingPanel as PluginDocumentSettingPanelFromEditor } from '@wordpress/editor';
+import { PluginDocumentSettingPanel as PluginDocumentSettingPanelFromEditPost } from '@wordpress/edit-post';
 import { Button } from '@wordpress/components';
 import { useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import ComposeModal from './ComposeModal';
 import EditModal from './EditModal';
+
+// WP <6.6 only exposes PluginDocumentSettingPanel on @wordpress/edit-post;
+// WP 6.6+ moved it to @wordpress/editor and deprecated the edit-post export.
+// ?? short-circuits so the deprecated path is only read when the new one is absent.
+const PluginDocumentSettingPanel =
+  PluginDocumentSettingPanelFromEditor ?? PluginDocumentSettingPanelFromEditPost;
 
 type Mode = 'idle' | 'compose' | 'edit';
 
