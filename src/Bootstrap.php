@@ -34,6 +34,7 @@ final class Bootstrap {
 				( new \StarterAi\Rest\ComposeController() )->register();
 				( new \StarterAi\Rest\EditController() )->register();
 				( new \StarterAi\Rest\RefineController() )->register();
+				( new \StarterAi\Rest\StatusController() )->register();
 			}
 		);
 
