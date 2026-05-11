@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  phpcs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          tools: composer
+      - run: composer install --prefer-dist --no-progress
+      - run: composer lint
+
+  phpunit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: wp-starter-ai
+      - uses: actions/checkout@v4
+        with:
+          repository: bergert/wp-starter-theme
+          ref: main
+          token: ${{ secrets.STARTER_THEME_PAT }}
+          path: wp-starter-theme
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: wp-starter-ai/package-lock.json
+      - name: Build starter theme blocks
+        run: |
+          cd wp-starter-theme
+          npm ci
+          npm run build
+      - name: Install plugin deps
+        run: |
+          cd wp-starter-ai
+          npm ci
+      - name: Start wp-env (mounts both)
+        run: cd wp-starter-ai && npm run env:start
+      - name: Run PHPUnit
+        run: cd wp-starter-ai && npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit
+      - if: always()
+        run: cd wp-starter-ai && npm run env:stop
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: wp-starter-ai
+      - uses: actions/checkout@v4
+        with:
+          repository: bergert/wp-starter-theme
+          ref: main
+          token: ${{ secrets.STARTER_THEME_PAT }}
+          path: wp-starter-theme
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: wp-starter-ai/package-lock.json
+      - run: cd wp-starter-theme && npm ci && npm run build
+      - run: cd wp-starter-ai && npm ci
+      - run: cd wp-starter-ai && npx playwright install --with-deps chromium
+      - run: cd wp-starter-ai && npm run env:start
+      - run: cd wp-starter-ai && npm run build
+      - run: cd wp-starter-ai && npm run e2e
+      - if: always()
+        run: cd wp-starter-ai && npm run env:stop
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: wp-starter-ai/playwright-report/
