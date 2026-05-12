@@ -73,7 +73,7 @@ final class TurnRunner {
 			$toolResults      = [];
 			$stop_reason      = null;
 			$current_tu       = null;
-			$current_text     = null; // aggregated text per content_block index, null when no text block is open
+			$current_text     = null; // Aggregated text per content_block index; null when no text block is open.
 
 			foreach ( $result as $event ) {
 				if ( $this->store->isAborted( $turn_id ) ) {

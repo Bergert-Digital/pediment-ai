@@ -107,7 +107,7 @@ final class ConversationStore {
 			'status'     => (string) $row['status'],
 			'content'    => (string) $row['content'],
 			'tool_calls' => $row['tool_calls'] ? ( json_decode( (string) $row['tool_calls'], true ) ?: [] ) : [],
-			'error'      => $row['error']      ? ( json_decode( (string) $row['error'],      true ) ?: null ) : null,
+			'error'      => $row['error'] ? ( json_decode( (string) $row['error'], true ) ?: null ) : null,
 			'created_at' => (string) $row['created_at'],
 		];
 		if ( isset( $row['conversation_id'] ) ) {
