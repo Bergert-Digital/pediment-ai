@@ -16,7 +16,6 @@ Strike items with `~~text~~` when struck during validation. Check `[x]` when don
 - [ ] **Land the chat sidebar on `development`.** `feat/ai-chat-sidebar` is ~22 commits ahead of `development`. Until it lands, no other work on the editor should happen there — it'll just create merge pain. Decide: fast-forward merge into `development`, or open a PR for review. Verify schema commit on `development` (`8b99707`) is the same one used on the feature branch before merging.
 - [ ] **Verify chat sidebar end-to-end in the browser after merge.** PHPUnit + Playwright pass on the feature branch, but no human has walked Compose / Edit / Refine through the new chat UX. Run all three core journeys from `docs/PRODUCT_SENSE.md` against a live wp-env.
 - [ ] **Remove the broken `npm run env:stop`.** `package.json` still exposes `env:stop`, which is documented in README as buggy. Either replace the script with the working `docker compose down` form, or remove the script entirely so people don't reach for it.
-- [ ] **`OptionsStoreTest` leaks the live API key into stdout** when run with `ANTHROPIC_API_KEY` defined (via `.wp-env.override.json` or any env constant). Happened twice during the chat-sidebar implementation session. Fix is a one-line `$this->markTestSkipped(...)` guard in `setUp` when `defined('ANTHROPIC_API_KEY')`. Worth doing soon — bites anyone who runs `composer test` locally with a key configured.
 
 ## 🟡 High
 
