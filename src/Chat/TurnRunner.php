@@ -73,6 +73,7 @@ final class TurnRunner {
 			$toolResults      = [];
 			$stop_reason      = null;
 			$current_tu       = null;
+			$current_text     = null; // aggregated text per content_block index, null when no text block is open
 
 			foreach ( $result as $event ) {
 				if ( $this->store->isAborted( $turn_id ) ) {
@@ -80,13 +81,18 @@ final class TurnRunner {
 				}
 				$type = (string) ( $event['type'] ?? '' );
 
-				if ( 'content_block_start' === $type && 'tool_use' === ( $event['content_block']['type'] ?? '' ) ) {
-					$current_tu = [
-						'type'  => 'tool_use',
-						'id'    => (string) ( $event['content_block']['id']   ?? '' ),
-						'name'  => (string) ( $event['content_block']['name'] ?? '' ),
-						'input' => '',
-					];
+				if ( 'content_block_start' === $type ) {
+					$block_type = (string) ( $event['content_block']['type'] ?? '' );
+					if ( 'tool_use' === $block_type ) {
+						$current_tu = [
+							'type'  => 'tool_use',
+							'id'    => (string) ( $event['content_block']['id']   ?? '' ),
+							'name'  => (string) ( $event['content_block']['name'] ?? '' ),
+							'input' => '',
+						];
+					} elseif ( 'text' === $block_type ) {
+						$current_text = '';
+					}
 					continue;
 				}
 				if ( 'content_block_delta' === $type ) {
@@ -94,35 +100,48 @@ final class TurnRunner {
 					if ( 'text_delta' === ( $delta['type'] ?? '' ) ) {
 						$text = (string) ( $delta['text'] ?? '' );
 						$this->store->appendAssistantDelta( $turn_id, $text );
-						$assistantContent[] = [ 'type' => 'text', 'text' => $text ];
+						// Aggregate per-block, not per-delta — Anthropic rejects empty text blocks
+						// and also dislikes many tiny adjacent text blocks when we echo them back.
+						if ( null === $current_text ) {
+							$current_text = '';
+						}
+						$current_text .= $text;
 					} elseif ( 'input_json_delta' === ( $delta['type'] ?? '' ) && null !== $current_tu ) {
 						$current_tu['input'] .= (string) ( $delta['partial_json'] ?? '' );
 					}
 					continue;
 				}
-				if ( 'content_block_stop' === $type && null !== $current_tu ) {
-					$tu_input        = json_decode( $current_tu['input'], true );
-					$tu_input        = is_array( $tu_input ) ? $tu_input : [];
-					$tool_result     = $this->tools->apply( $tree, $current_tu['name'], $tu_input );
-					$this->store->recordToolCall( $turn_id, [
-						'tool'     => $current_tu['name'],
-						'input'    => $tu_input,
-						'output'   => $tool_result['content'] ?? null,
-						'is_error' => ! empty( $tool_result['is_error'] ),
-					] );
-					$assistantContent[] = [
-						'type'  => 'tool_use',
-						'id'    => $current_tu['id'],
-						'name'  => $current_tu['name'],
-						'input' => $tu_input,
-					];
-					$toolResults[] = [
-						'type'        => 'tool_result',
-						'tool_use_id' => $current_tu['id'],
-						'content'     => is_string( $tool_result['content'] ) ? $tool_result['content'] : wp_json_encode( $tool_result['content'] ),
-						'is_error'    => ! empty( $tool_result['is_error'] ),
-					];
-					$current_tu = null;
+				if ( 'content_block_stop' === $type ) {
+					if ( null !== $current_tu ) {
+						$tu_input    = json_decode( $current_tu['input'], true );
+						$tu_input    = is_array( $tu_input ) ? $tu_input : [];
+						$tool_result = $this->tools->apply( $tree, $current_tu['name'], $tu_input );
+						$this->store->recordToolCall( $turn_id, [
+							'tool'     => $current_tu['name'],
+							'input'    => $tu_input,
+							'output'   => $tool_result['content'] ?? null,
+							'is_error' => ! empty( $tool_result['is_error'] ),
+						] );
+						$assistantContent[] = [
+							'type'  => 'tool_use',
+							'id'    => $current_tu['id'],
+							'name'  => $current_tu['name'],
+							'input' => $tu_input,
+						];
+						$toolResults[] = [
+							'type'        => 'tool_result',
+							'tool_use_id' => $current_tu['id'],
+							'content'     => is_string( $tool_result['content'] ) ? $tool_result['content'] : wp_json_encode( $tool_result['content'] ),
+							'is_error'    => ! empty( $tool_result['is_error'] ),
+						];
+						$current_tu = null;
+					} elseif ( null !== $current_text ) {
+						// Only emit the text block if it has content — empty blocks get rejected.
+						if ( '' !== $current_text ) {
+							$assistantContent[] = [ 'type' => 'text', 'text' => $current_text ];
+						}
+						$current_text = null;
+					}
 					continue;
 				}
 				if ( 'message_delta' === $type ) {

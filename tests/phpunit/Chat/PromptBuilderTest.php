@@ -37,4 +37,17 @@ class PromptBuilderTest extends \WP_UnitTestCase {
 		$this->assertCount( 20, $sliced );
 		$this->assertSame( 'u20', $sliced[0]['content'][0]['text'] );
 	}
+
+	public function test_history_skips_messages_with_empty_content(): void {
+		$pb     = new PromptBuilder( [] );
+		$sliced = $pb->historyToMessages( [
+			[ 'role' => 'user',      'content' => 'first prompt',   'tool_calls' => [] ],
+			[ 'role' => 'assistant', 'content' => '',                'tool_calls' => [ [ 'tool' => 'insert_block' ] ] ],
+			[ 'role' => 'user',      'content' => 'second prompt',   'tool_calls' => [] ],
+			[ 'role' => 'assistant', 'content' => "   \n  ",          'tool_calls' => [] ],
+		] );
+		$this->assertCount( 2, $sliced );
+		$this->assertSame( 'first prompt',  $sliced[0]['content'][0]['text'] );
+		$this->assertSame( 'second prompt', $sliced[1]['content'][0]['text'] );
+	}
 }

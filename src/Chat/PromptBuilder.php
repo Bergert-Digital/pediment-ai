@@ -60,9 +60,16 @@ final class PromptBuilder {
 			if ( 'user' !== $role && 'assistant' !== $role ) {
 				continue;
 			}
+			// Anthropic rejects empty text content blocks. An assistant message with no
+			// prose (only tool calls) has content=''; skip it in history — the tool calls'
+			// effects are already reflected in the current block tree we send each turn.
+			$content = trim( (string) ( $msg['content'] ?? '' ) );
+			if ( '' === $content ) {
+				continue;
+			}
 			$out[] = [
 				'role'    => $role,
-				'content' => [ [ 'type' => 'text', 'text' => (string) ( $msg['content'] ?? '' ) ] ],
+				'content' => [ [ 'type' => 'text', 'text' => $content ] ],
 			];
 		}
 		return $out;
