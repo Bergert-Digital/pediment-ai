@@ -47,4 +47,74 @@ class ConversationStoreTest extends \WP_UnitTestCase {
 	public function test_find_by_id_returns_null_for_unknown_id(): void {
 		$this->assertNull( $this->store->findById( 999_999 ) );
 	}
+
+	public function test_append_user_message_writes_row(): void {
+		$conv = $this->store->getOrCreate( 1, 1 );
+		$id   = $this->store->appendUserMessage( $conv['id'], 'Hello world' );
+		$loaded = $this->store->findById( $conv['id'] );
+		$this->assertCount( 1, $loaded['messages'] );
+		$this->assertSame( 'user',    $loaded['messages'][0]['role'] );
+		$this->assertSame( 'complete', $loaded['messages'][0]['status'] );
+		$this->assertSame( 'Hello world', $loaded['messages'][0]['content'] );
+	}
+
+	public function test_start_assistant_turn_returns_streaming_row(): void {
+		$conv = $this->store->getOrCreate( 1, 1 );
+		$id   = $this->store->startAssistantTurn( $conv['id'] );
+		$loaded = $this->store->findById( $conv['id'] );
+		$this->assertSame( 'assistant', $loaded['messages'][0]['role'] );
+		$this->assertSame( 'streaming', $loaded['messages'][0]['status'] );
+		$this->assertSame( '',          $loaded['messages'][0]['content'] );
+	}
+
+	public function test_append_assistant_delta_is_cumulative(): void {
+		$conv = $this->store->getOrCreate( 1, 1 );
+		$id   = $this->store->startAssistantTurn( $conv['id'] );
+		$this->store->appendAssistantDelta( $id, 'Hel' );
+		$this->store->appendAssistantDelta( $id, 'lo!' );
+		$msg = $this->store->getMessage( $id );
+		$this->assertSame( 'Hello!', $msg['content'] );
+	}
+
+	public function test_record_tool_call_appends_to_json(): void {
+		$conv = $this->store->getOrCreate( 1, 1 );
+		$id   = $this->store->startAssistantTurn( $conv['id'] );
+		$this->store->recordToolCall( $id, [ 'tool' => 'insert_block', 'input' => [ 'foo' => 'bar' ] ] );
+		$this->store->recordToolCall( $id, [ 'tool' => 'delete_block', 'input' => [ 'client_id' => 'x' ] ] );
+		$msg = $this->store->getMessage( $id );
+		$this->assertCount( 2, $msg['tool_calls'] );
+		$this->assertSame( 'insert_block', $msg['tool_calls'][0]['tool'] );
+	}
+
+	public function test_complete_marks_status(): void {
+		$conv = $this->store->getOrCreate( 1, 1 );
+		$id   = $this->store->startAssistantTurn( $conv['id'] );
+		$this->store->complete( $id );
+		$this->assertSame( 'complete', $this->store->getMessage( $id )['status'] );
+	}
+
+	public function test_fail_marks_error_and_status(): void {
+		$conv = $this->store->getOrCreate( 1, 1 );
+		$id   = $this->store->startAssistantTurn( $conv['id'] );
+		$this->store->fail( $id, 'rate_limit', 'Slow down' );
+		$msg = $this->store->getMessage( $id );
+		$this->assertSame( 'error', $msg['status'] );
+		$this->assertSame( 'rate_limit', $msg['error']['code'] );
+	}
+
+	public function test_abort_sets_status_and_is_visible_to_polling(): void {
+		$conv = $this->store->getOrCreate( 1, 1 );
+		$id   = $this->store->startAssistantTurn( $conv['id'] );
+		$this->store->abort( $id );
+		$this->assertSame( 'aborted', $this->store->getMessage( $id )['status'] );
+		$this->assertTrue( $this->store->isAborted( $id ) );
+	}
+
+	public function test_clear_deletes_all_messages_for_conversation(): void {
+		$conv = $this->store->getOrCreate( 1, 1 );
+		$this->store->appendUserMessage( $conv['id'], 'a' );
+		$this->store->appendUserMessage( $conv['id'], 'b' );
+		$this->store->clear( $conv['id'] );
+		$this->assertSame( [], $this->store->findById( $conv['id'] )['messages'] );
+	}
 }

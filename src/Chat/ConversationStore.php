@@ -101,7 +101,7 @@ final class ConversationStore {
 	 * @return array<string,mixed>
 	 */
 	private function hydrate( array $row ): array {
-		return [
+		$result = [
 			'id'         => (int) $row['id'],
 			'role'       => (string) $row['role'],
 			'status'     => (string) $row['status'],
@@ -110,5 +110,118 @@ final class ConversationStore {
 			'error'      => $row['error']      ? ( json_decode( (string) $row['error'],      true ) ?: null ) : null,
 			'created_at' => (string) $row['created_at'],
 		];
+		if ( isset( $row['conversation_id'] ) ) {
+			$result['conversation_id'] = (int) $row['conversation_id'];
+		}
+		return $result;
+	}
+
+	public function appendUserMessage( int $conversation_id, string $content ): int {
+		return $this->insertMessage( $conversation_id, 'user', 'complete', $content );
+	}
+
+	public function startAssistantTurn( int $conversation_id ): int {
+		return $this->insertMessage( $conversation_id, 'assistant', 'streaming', '' );
+	}
+
+	public function appendAssistantDelta( int $message_id, string $delta ): void {
+		global $wpdb;
+		$wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$this->messages} SET content = CONCAT(content, %s), updated_at = %s WHERE id = %d",
+				$delta,
+				current_time( 'mysql', true ),
+				$message_id
+			)
+		);
+	}
+
+	/**
+	 * @param array<string,mixed> $call
+	 */
+	public function recordToolCall( int $message_id, array $call ): void {
+		global $wpdb;
+		$row   = $wpdb->get_row( $wpdb->prepare( "SELECT tool_calls FROM {$this->messages} WHERE id = %d", $message_id ), ARRAY_A );
+		$calls = $row && $row['tool_calls'] ? ( json_decode( (string) $row['tool_calls'], true ) ?: [] ) : [];
+		$calls[] = $call;
+		$wpdb->update(
+			$this->messages,
+			[ 'tool_calls' => wp_json_encode( $calls ), 'updated_at' => current_time( 'mysql', true ) ],
+			[ 'id' => $message_id ]
+		);
+	}
+
+	public function complete( int $message_id ): void {
+		global $wpdb;
+		$wpdb->update(
+			$this->messages,
+			[ 'status' => 'complete', 'updated_at' => current_time( 'mysql', true ) ],
+			[ 'id' => $message_id ]
+		);
+	}
+
+	public function fail( int $message_id, string $code, string $message ): void {
+		global $wpdb;
+		$wpdb->update(
+			$this->messages,
+			[
+				'status'     => 'error',
+				'error'      => wp_json_encode( [ 'code' => $code, 'message' => $message ] ),
+				'updated_at' => current_time( 'mysql', true ),
+			],
+			[ 'id' => $message_id ]
+		);
+	}
+
+	public function abort( int $message_id ): void {
+		global $wpdb;
+		$wpdb->update(
+			$this->messages,
+			[ 'status' => 'aborted', 'updated_at' => current_time( 'mysql', true ) ],
+			[ 'id' => $message_id ]
+		);
+	}
+
+	public function isAborted( int $message_id ): bool {
+		global $wpdb;
+		$status = (string) $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$this->messages} WHERE id = %d", $message_id ) );
+		return 'aborted' === $status;
+	}
+
+	/**
+	 * @return array<string,mixed>|null
+	 */
+	public function getMessage( int $message_id ): ?array {
+		global $wpdb;
+		$row = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT id, conversation_id, role, status, content, tool_calls, error, created_at FROM {$this->messages} WHERE id = %d",
+				$message_id
+			),
+			ARRAY_A
+		);
+		return $row ? $this->hydrate( $row ) : null;
+	}
+
+	public function clear( int $conversation_id ): void {
+		global $wpdb;
+		$wpdb->delete( $this->messages, [ 'conversation_id' => $conversation_id ] );
+	}
+
+	private function insertMessage( int $conversation_id, string $role, string $status, string $content ): int {
+		global $wpdb;
+		$now = current_time( 'mysql', true );
+		$wpdb->insert(
+			$this->messages,
+			[
+				'conversation_id' => $conversation_id,
+				'role'            => $role,
+				'status'          => $status,
+				'content'         => $content,
+				'created_at'      => $now,
+				'updated_at'      => $now,
+			]
+		);
+		return (int) $wpdb->insert_id;
 	}
 }
