@@ -106,8 +106,10 @@ read_block(client_id: string)
 ```
 
 - `BlockSpec` reuses the existing `src/BlockTree/Validator.php` schema. The validator runs on every `insert_block` / `update_block` call's payload (not the whole tree) before the mutation is recorded.
-- Tool calls are **collected during streaming, not executed live**. Each tool_use block coming off the Anthropic stream gets validated and appended to the assistant message row's `tool_calls` JSON column. When `stop_reason` is `end_turn`, the server marks the row `complete` and the client applies all buffered mutations in one Gutenberg transaction — single Cmd-Z reverts the whole turn.
-- If the model emits a tool call referencing a `clientId` that doesn't exist (e.g., the user manually deleted the block between turns), the server records a synthetic `tool_result` with `is_error: true` and message "Block not found." The model can correct on the next turn. Same for validator failures.
+- The turn is an **iterative Anthropic loop, not a single streaming call.** TurnRunner streams the Anthropic response; if `stop_reason` is `tool_use`, the server applies each tool call server-side (validation + virtual-tree bookkeeping), generates synthetic `tool_result` blocks (`{ ok: true, client_id }` for inserts, `{ name, attrs, content }` for `read_block`, `{ error: ... }` on failure), appends them to the message list, and starts a new streaming call. This repeats until `stop_reason` is `end_turn`. Across all iterations, mutation tool calls accumulate in the assistant message row's `tool_calls` JSON column.
+- The server maintains a **virtual block tree** for the duration of the turn — applying inserts/updates/deletes/moves in memory as the model calls them — so later tool calls can reference clientIds emitted earlier in the same turn. The client receives the final accumulated tool_calls list and applies them all to the real canvas in one Gutenberg transaction (single Cmd-Z reverts the whole turn).
+- `read_block(client_id)` returns content from the virtual tree if available (preferred), otherwise from the context tree sent at turn start. Mutation tool_results return `{ ok: true, client_id? }`.
+- If the model emits a tool call referencing a `clientId` that doesn't exist in the virtual tree (e.g., the user manually deleted the block between turns), the server returns a synthetic `tool_result` with `is_error: true` and message "Block not found." The model can correct on the next loop iteration. Same for validator failures.
 
 ### Why no `replace_tree` tool
 
