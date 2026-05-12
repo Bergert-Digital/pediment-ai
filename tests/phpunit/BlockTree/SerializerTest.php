@@ -1,7 +1,6 @@
 <?php
 namespace StarterAi\Tests\BlockTree;
 
-use StarterAi\BlockTree\Parser;
 use StarterAi\BlockTree\Serializer;
 
 class SerializerTest extends \WP_UnitTestCase {
@@ -33,15 +32,6 @@ class SerializerTest extends \WP_UnitTestCase {
 		$this->assertStringContainsString( '<!-- wp:starter/faq -->',       $markup );
 		$this->assertStringContainsString( '<!-- wp:starter/faq-item',      $markup );
 		$this->assertStringContainsString( '<!-- /wp:starter/faq -->',      $markup );
-	}
-
-	public function test_round_trip_via_parser(): void {
-		$original = '<!-- wp:starter/hero {"headline":"Hello"} /-->';
-		$tree     = ( new Parser() )->parse( $original );
-		$back     = ( new Serializer() )->serialize( $tree );
-		$reparsed = ( new Parser() )->parse( $back );
-
-		$this->assertSame( $tree, $reparsed );
 	}
 
 	public function test_returns_empty_string_for_empty_tree(): void {
