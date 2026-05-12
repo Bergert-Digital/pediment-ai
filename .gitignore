@@ -10,3 +10,4 @@ test-results/
 schema/blocks.json
 .claude/settings.local.json
 .wp-env.override.json
+.worktrees/
