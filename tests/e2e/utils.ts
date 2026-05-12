@@ -31,7 +31,47 @@ export async function openNewPage(page: Page, title: string) {
   await titleField.fill(title);
 }
 
-export async function openDocumentSidebar(page: Page) {
-  const btn = page.getByRole('button', { name: /document sidebar|settings/i });
-  if (await btn.count()) { await btn.first().click(); }
+/**
+ * Opens the editor's general sidebar to a specific tab via the WordPress data API.
+ * More reliable than clicking around UI affordances that move between WP versions.
+ *   tab = 'edit-post/document' | 'edit-post/block'
+ */
+async function openSidebarTab(page: Page, tab: 'edit-post/document' | 'edit-post/block') {
+  await page.evaluate((target) => {
+    const wp = (window as any).wp;
+    const dispatch = wp?.data?.dispatch?.('core/edit-post') ?? wp?.data?.dispatch?.('core/editor');
+    dispatch?.openGeneralSidebar?.(target);
+  }, tab);
+}
+
+/**
+ * Opens the Document sidebar, ensures the "AI Chat" PluginDocumentSettingPanel is expanded,
+ * and returns the chat panel locator (`.starter-ai-chat`) for further interactions.
+ */
+export async function openAIChatPanel(page: Page) {
+  await openSidebarTab(page, 'edit-post/document');
+  const toggle = page.getByRole('button', { name: /^AI Chat$/i }).first();
+  await toggle.waitFor({ state: 'visible', timeout: 10_000 });
+  if ((await toggle.getAttribute('aria-expanded')) === 'false') {
+    await toggle.click();
+  }
+  const panel = page.locator('.starter-ai-chat').first();
+  await panel.waitFor({ state: 'visible', timeout: 10_000 });
+  return panel;
+}
+
+/**
+ * Variant for the block-inspector AI Chat PanelBody (rendered by BlockChatPanel.tsx
+ * when a block is selected). Use this after selecting a block in the canvas.
+ */
+export async function openBlockAIChatPanel(page: Page) {
+  await openSidebarTab(page, 'edit-post/block');
+  const toggle = page.getByRole('button', { name: /^AI Chat$/i }).first();
+  await toggle.waitFor({ state: 'visible', timeout: 10_000 });
+  if ((await toggle.getAttribute('aria-expanded')) === 'false') {
+    await toggle.click();
+  }
+  const panel = page.locator('.starter-ai-chat').first();
+  await panel.waitFor({ state: 'visible', timeout: 10_000 });
+  return panel;
 }
