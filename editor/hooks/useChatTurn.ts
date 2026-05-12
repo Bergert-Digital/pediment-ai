@@ -1,38 +1,42 @@
 import apiFetch from '@wordpress/api-fetch';
-import { useState, useRef, useCallback } from '@wordpress/element';
-import { select } from '@wordpress/data';
-import type { ChatMessage } from './useConversation';
+import { useCallback } from '@wordpress/element';
+import { select as wpSelect, useSelect, useDispatch } from '@wordpress/data';
+import { STORE_NAME, ensureChatStoreRegistered, type ChatMessage, type Conversation } from '../chat/store';
 import applyToolCalls from '../applyToolCalls';
 
+ensureChatStoreRegistered();
+
 const POLL_MS = 300;
+
+// Module-level — shared across every component that mounts useChatTurn.
+let pollTimer: number | null = null;
+let aborted = false;
 
 type StartArgs = {
   conversationId: number;
   postId: number;
   message: string;
   selectedBlock: { clientId: string; name: string; attributes: any; innerBlocks: any[] } | null;
-  onComplete: (msg: ChatMessage) => void;
 };
 
 export default function useChatTurn() {
-  const [streaming, setStreaming] = useState<ChatMessage | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const timer = useRef<number | null>(null);
-  const abortedRef = useRef(false);
+  const streaming = useSelect((s) => (s(STORE_NAME) as any).getStreaming() as ChatMessage | null, []);
+  const error     = useSelect((s) => (s(STORE_NAME) as any).getError()     as string | null,      []);
+  const { setStreaming, clearStreaming, setError, setConversation } = useDispatch(STORE_NAME) as any;
 
   const stop = useCallback(() => {
     if (streaming) {
       apiFetch({ path: `/starter-ai/v1/chat/turns/${streaming.id}`, method: 'DELETE' }).catch(() => {});
-      abortedRef.current = true;
+      aborted = true;
     }
-    if (timer.current !== null) { window.clearInterval(timer.current); timer.current = null; }
-    setStreaming(null);
-  }, [streaming]);
+    if (pollTimer !== null) { window.clearInterval(pollTimer); pollTimer = null; }
+    clearStreaming();
+  }, [streaming, clearStreaming]);
 
   const start = useCallback(async (args: StartArgs) => {
     setError(null);
-    abortedRef.current = false;
-    const blockTree = blocksToTree((select('core/block-editor') as any).getBlocks());
+    aborted = false;
+    const blockTree = blocksToTree((wpSelect('core/block-editor') as any).getBlocks());
     let turnId: number;
     try {
       const r = await apiFetch<{ turn_id: number }>({
@@ -55,25 +59,34 @@ export default function useChatTurn() {
     const tick = async () => {
       try {
         const t = await apiFetch<ChatMessage>({ path: `/starter-ai/v1/chat/turns/${turnId}`, method: 'GET' });
-        if (abortedRef.current) return;
+        if (aborted) return;
         setStreaming({ ...t, id: turnId });
         if (t.status !== 'streaming') {
-          if (timer.current !== null) { window.clearInterval(timer.current); timer.current = null; }
-          setStreaming(null);
+          if (pollTimer !== null) { window.clearInterval(pollTimer); pollTimer = null; }
+          clearStreaming();
           if (t.status === 'complete' && Array.isArray(t.tool_calls)) {
             applyToolCalls(t.tool_calls);
           }
-          args.onComplete({ ...t, id: turnId });
+          // Re-fetch the conversation so persisted messages show up in MessageList.
+          try {
+            const conv = await apiFetch<Conversation>({
+              path: `/starter-ai/v1/chat/conversations?post_id=${args.postId}`,
+              method: 'GET',
+            });
+            setConversation(conv);
+          } catch {
+            // best-effort; the next mount will reload
+          }
         }
       } catch (e: any) {
-        if (timer.current !== null) { window.clearInterval(timer.current); timer.current = null; }
-        setStreaming(null);
+        if (pollTimer !== null) { window.clearInterval(pollTimer); pollTimer = null; }
+        clearStreaming();
         setError(e?.message ?? 'Polling failed');
       }
     };
     await tick();
-    timer.current = window.setInterval(tick, POLL_MS);
-  }, []);
+    pollTimer = window.setInterval(tick, POLL_MS);
+  }, [setStreaming, clearStreaming, setError, setConversation]);
 
   return { streaming, error, start, stop };
 }
