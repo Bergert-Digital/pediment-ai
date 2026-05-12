@@ -1,7 +1,27 @@
-.starter-ai {
-  &__panel    { /* container */ }
-  &__pills    { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-  &__pill     { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: #f0f0f1; border-radius: 12px; font-size: 11px; color: #1d2327; }
-  &__progress { display: flex; align-items: center; gap: 8px; padding: 12px 0; }
-  &__error    { color: #b32d2e; margin-top: 8px; }
+// Chat lives inside a Document-tab section AND inside the Block-inspector PanelBody.
+// Both contexts are narrow (~280px) and already provide their own header/border, so we
+// don't take 100% height or paint our own outer border.
+.starter-ai-chat {
+  display: flex; flex-direction: column; gap: 8px; margin: -8px -12px; // tighten to PanelBody bleed
+  &__header   { display: none; } // PanelBody supplies the title
+  &__title    { display: none; }
+  &__messages { max-height: 360px; overflow-y: auto; padding: 8px 12px; display: flex; flex-direction: column; gap: 8px; }
+  &__message  { display: flex; flex-direction: column; }
+  &__message--user      { align-items: flex-end; }
+  &__message--assistant { align-items: flex-start; }
+  &__bubble   { padding: 6px 10px; border-radius: 10px; max-width: 92%; background: #f0f0f1; white-space: pre-wrap; font-size: 12px; }
+  &__message--user .starter-ai-chat__bubble { background: #007cba; color: #fff; }
+  &__caret    { display: inline-block; width: 5px; height: 11px; background: currentColor; margin-left: 3px; animation: starter-ai-blink 1s infinite; }
+  &__tools    { font-size: 11px; color: #555; margin-top: 4px; }
+  &__tools-toggle { background: none; border: 0; padding: 0; color: inherit; cursor: pointer; font-size: 11px; }
+  &__tools-detail { background: #f6f7f7; padding: 6px; font-size: 11px; max-height: 200px; overflow: auto; }
+  &__error    { color: #b32d2e; padding: 4px 12px; font-size: 12px; }
+  &__composer { border-top: 1px solid #ddd; padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; }
+  &__composer textarea { width: 100%; resize: vertical; font-size: 12px; }
+  &__composer-actions { display: flex; justify-content: flex-end; }
+  &__chip    { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: #fffbe6; border-top: 1px solid #f1d889; font-size: 11px; }
+  &__chip-type    { font-weight: 600; }
+  &__chip-preview { color: #555; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  &__quick   { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 12px 0; }
 }
+@keyframes starter-ai-blink { 50% { opacity: 0; } }

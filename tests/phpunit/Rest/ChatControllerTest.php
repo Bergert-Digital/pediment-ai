@@ -1,0 +1,113 @@
+<?php
+namespace StarterAi\Tests\Rest;
+
+use StarterAi\Chat\ConversationStore;
+use StarterAi\Rest\ChatController;
+
+class ChatControllerTest extends \WP_UnitTestCase {
+	private \WP_REST_Server $server;
+	private int $post_id;
+
+	public function setUp(): void {
+		parent::setUp();
+		\starter_ai_install_tables();
+		global $wpdb;
+		$wpdb->query( "TRUNCATE {$wpdb->prefix}starter_ai_chat_conversations" );
+		$wpdb->query( "TRUNCATE {$wpdb->prefix}starter_ai_chat_messages" );
+
+		global $wp_rest_server;
+		$wp_rest_server = new \WP_REST_Server();
+		$this->server   = $wp_rest_server;
+		do_action( 'rest_api_init' );
+		// Explicit registration so the test doesn't depend on Bootstrap wiring (Task 12).
+		( new ChatController() )->register();
+
+		$user_id = $this->factory->user->create( [ 'role' => 'editor' ] );
+		wp_set_current_user( $user_id );
+		$this->post_id = $this->factory->post->create( [ 'post_author' => $user_id, 'post_status' => 'draft' ] );
+
+		// Force the mock provider regardless of constants.
+		add_filter( 'starter_ai_provider', static fn() => new \StarterAi\Mock\MockProvider( STARTER_AI_PLUGIN_DIR . '/src/Mock/fixtures' ) );
+	}
+
+	public function test_get_conversation_creates_on_first_call(): void {
+		$req = new \WP_REST_Request( 'GET', '/starter-ai/v1/chat/conversations' );
+		$req->set_param( 'post_id', $this->post_id );
+		$res = $this->server->dispatch( $req );
+		$this->assertSame( 200, $res->get_status() );
+		$this->assertGreaterThan( 0, $res->get_data()['id'] );
+		$this->assertSame( [], $res->get_data()['messages'] );
+	}
+
+	public function test_post_turn_returns_202_and_persists_user_message(): void {
+		$conv = ( new ConversationStore() )->getOrCreate( $this->post_id, get_current_user_id() );
+		$req  = new \WP_REST_Request( 'POST', '/starter-ai/v1/chat/turns' );
+		$req->set_param( 'conversation_id', $conv['id'] );
+		$req->set_param( 'post_id', $this->post_id );
+		$req->set_param( 'message', 'Hi' );
+		$res = $this->server->dispatch( $req );
+		$this->assertSame( 202, $res->get_status() );
+		$this->assertGreaterThan( 0, $res->get_data()['turn_id'] );
+
+		$loaded = ( new ConversationStore() )->findById( $conv['id'] );
+		// In test mode the turn runs inline before the response returns, so the assistant
+		// row may be 'complete' already. The user message is the first row, the assistant
+		// row is the second.
+		$this->assertGreaterThanOrEqual( 2, count( $loaded['messages'] ) );
+		$this->assertSame( 'user',      $loaded['messages'][0]['role'] );
+		$this->assertSame( 'assistant', $loaded['messages'][1]['role'] );
+	}
+
+	public function test_get_turn_returns_turn_state(): void {
+		$conv = ( new ConversationStore() )->getOrCreate( $this->post_id, get_current_user_id() );
+		$req  = new \WP_REST_Request( 'POST', '/starter-ai/v1/chat/turns' );
+		$req->set_param( 'conversation_id', $conv['id'] );
+		$req->set_param( 'post_id', $this->post_id );
+		$req->set_param( 'message', 'Add a paragraph that says hi' );
+		$post_res = $this->server->dispatch( $req );
+		$turn_id  = $post_res->get_data()['turn_id'];
+
+		$get = new \WP_REST_Request( 'GET', "/starter-ai/v1/chat/turns/{$turn_id}" );
+		$res = $this->server->dispatch( $get );
+		$this->assertSame( 200, $res->get_status() );
+		$this->assertContains( $res->get_data()['status'], [ 'streaming', 'complete' ] );
+	}
+
+	public function test_delete_turn_marks_aborted(): void {
+		$conv = ( new ConversationStore() )->getOrCreate( $this->post_id, get_current_user_id() );
+		// Start the turn inline; in test mode it runs to completion. We need a turn that
+		// hasn't run, so we'll manually create one and abort it.
+		$store   = new ConversationStore();
+		$store->appendUserMessage( $conv['id'], 'x' );
+		$turn_id = $store->startAssistantTurn( $conv['id'] );
+
+		$del = new \WP_REST_Request( 'DELETE', "/starter-ai/v1/chat/turns/{$turn_id}" );
+		$res = $this->server->dispatch( $del );
+		$this->assertSame( 204, $res->get_status() );
+		$this->assertSame( 'aborted', $store->getMessage( $turn_id )['status'] );
+	}
+
+	public function test_delete_conversation_clears_messages(): void {
+		$conv = ( new ConversationStore() )->getOrCreate( $this->post_id, get_current_user_id() );
+		( new ConversationStore() )->appendUserMessage( $conv['id'], 'a' );
+
+		$del = new \WP_REST_Request( 'DELETE', "/starter-ai/v1/chat/conversations/{$conv['id']}" );
+		$res = $this->server->dispatch( $del );
+		$this->assertSame( 204, $res->get_status() );
+		$this->assertSame( [], ( new ConversationStore() )->findById( $conv['id'] )['messages'] );
+	}
+
+	public function test_post_turn_rejects_for_post_user_cannot_edit(): void {
+		$other = $this->factory->post->create( [ 'post_status' => 'draft', 'post_author' => 999 ] );
+		// Drop to a user who cannot edit others' posts.
+		wp_set_current_user( $this->factory->user->create( [ 'role' => 'author' ] ) );
+		$conv = ( new ConversationStore() )->getOrCreate( $other, get_current_user_id() );
+
+		$req = new \WP_REST_Request( 'POST', '/starter-ai/v1/chat/turns' );
+		$req->set_param( 'conversation_id', $conv['id'] );
+		$req->set_param( 'post_id', $other );
+		$req->set_param( 'message', 'x' );
+		$res = $this->server->dispatch( $req );
+		$this->assertSame( 403, $res->get_status() );
+	}
+}

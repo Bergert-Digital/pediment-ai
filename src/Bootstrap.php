@@ -39,12 +39,25 @@ final class Bootstrap {
 
 		( new \StarterAi\Settings\Page() )->register();
 
+		add_action( 'admin_notices', [ new \StarterAi\Activation\StreamingCheck(), 'renderNotice' ] );
+
 		add_action( 'enqueue_block_editor_assets', static function () {
 			$asset_path = STARTER_AI_PLUGIN_DIR . '/build/index.asset.php';
 			if ( ! file_exists( $asset_path ) ) {
 				return;
 			}
 			$asset = include $asset_path;
+			// Older WP installs don't register react-jsx-runtime; bundles built by @wordpress/scripts depend on it.
+			// Register our own shim so the dep resolves and the bundle's JSX runtime gets a working global.
+			if ( in_array( 'react-jsx-runtime', $asset['dependencies'] ?? [], true ) && ! wp_script_is( 'react-jsx-runtime', 'registered' ) ) {
+				wp_register_script(
+					'react-jsx-runtime',
+					STARTER_AI_PLUGIN_URL . 'assets/react-jsx-runtime-shim.js',
+					[ 'react' ],
+					STARTER_AI_VERSION,
+					true
+				);
+			}
 			wp_enqueue_script(
 				'starter-ai-editor',
 				STARTER_AI_PLUGIN_URL . 'build/index.js',
@@ -78,41 +91,8 @@ final class Bootstrap {
 		add_action(
 			'rest_api_init',
 			static function () {
-				( new \StarterAi\Rest\ComposeController() )->register();
-				( new \StarterAi\Rest\EditController() )->register();
-				( new \StarterAi\Rest\RefineController() )->register();
-				( new \StarterAi\Rest\StatusController() )->register();
+				( new \StarterAi\Rest\ChatController() )->register();
 			}
-		);
-
-		add_action(
-			'starter_ai_job_completed',
-			static function ( int $job_id, array $response, string $kind ) {
-				$job = ( new \StarterAi\Jobs\JobStore() )->getById( $job_id );
-				if ( ! $job ) {
-					return;
-				}
-				$fetched = count( $job['result']['urls_fetched'] ?? [] );
-				( new \StarterAi\Usage\Tracker() )->record( $job['user_id'], $kind, $response, $fetched );
-			},
-			10,
-			3
-		);
-
-		add_action(
-			'starter_ai_job_run',
-			static function ( int $job_id ) {
-				$store    = new \StarterAi\Jobs\JobStore();
-				$provider = apply_filters(
-					'starter_ai_provider',
-					new \StarterAi\Anthropic\Client(
-						(string) ( defined( 'ANTHROPIC_API_KEY' ) ? ANTHROPIC_API_KEY : get_option( 'starter_ai_api_key', '' ) )
-					)
-				);
-				( new \StarterAi\Jobs\ComposeJob( $store, $provider ) )->run( $job_id );
-			},
-			10,
-			1
 		);
 	}
 }

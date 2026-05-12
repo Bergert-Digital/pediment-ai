@@ -19,4 +19,12 @@ interface ProviderInterface {
 	 * @return array<string,mixed>|\WP_Error
 	 */
 	public function messages( array $args );
+
+	/**
+	 * Stream a Messages call. Yields parsed SSE events as { type, ...payload } arrays.
+	 *
+	 * @param array<string,mixed> $args Anthropic Messages request body (with stream: true added by the implementation).
+	 * @return iterable<int,array<string,mixed>>|\WP_Error
+	 */
+	public function stream_messages( array $args );
 }

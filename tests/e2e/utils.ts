@@ -1,4 +1,14 @@
-import { Page } from '@playwright/test';
+import { Page, FrameLocator } from '@playwright/test';
+
+/**
+ * Returns a locator scope for the editor canvas — the iframe in WP 6.5+ block themes,
+ * or the page itself in classic / non-iframed setups.
+ */
+export async function canvas(page: Page): Promise<FrameLocator | Page> {
+  return (await page.locator('iframe[name="editor-canvas"]').count())
+    ? page.frameLocator('iframe[name="editor-canvas"]')
+    : page;
+}
 
 export async function login(page: Page) {
   await page.goto('/wp-login.php');
@@ -13,8 +23,10 @@ export async function openNewPage(page: Page, title: string) {
   // Close any welcome / fullscreen modal that appears on first load.
   const closeBtn = page.getByRole('button', { name: /close dialog|close/i });
   if (await closeBtn.count()) { await closeBtn.first().click().catch(() => {}); }
-  // The title field's accessible name varies across WP versions.
-  const titleField = page.locator('.editor-post-title__input, [aria-label*="Add title" i], [placeholder*="Add title" i]').first();
+  // Give the editor a beat to mount its iframe before we look for the canvas.
+  await page.locator('iframe[name="editor-canvas"], .editor-post-title__input').first().waitFor({ timeout: 20_000 });
+  const scope = await canvas(page);
+  const titleField = scope.locator('.editor-post-title__input, [aria-label*="Add title" i], [placeholder*="Add title" i]').first();
   await titleField.waitFor({ state: 'visible', timeout: 20_000 });
   await titleField.fill(title);
 }

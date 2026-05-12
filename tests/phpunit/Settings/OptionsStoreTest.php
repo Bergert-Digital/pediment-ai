@@ -10,6 +10,9 @@ class OptionsStoreTest extends \WP_UnitTestCase {
 	}
 
 	public function test_set_and_get_api_key_round_trips(): void {
+		// OptionsStore::getApiKey() short-circuits to the ANTHROPIC_API_KEY constant when defined,
+		// which makes this round-trip test fail AND prints the live key in the assertion diff.
+		$this->skipIfApiKeyConstantDefined();
 		$store = new OptionsStore();
 		$store->setApiKey( 'sk-ant-test123' );
 		$this->assertSame( 'sk-ant-test123', $store->getApiKey() );
@@ -24,7 +27,14 @@ class OptionsStoreTest extends \WP_UnitTestCase {
 	}
 
 	public function test_get_api_key_returns_empty_when_unset(): void {
+		$this->skipIfApiKeyConstantDefined();
 		$this->assertSame( '', ( new OptionsStore() )->getApiKey() );
+	}
+
+	private function skipIfApiKeyConstantDefined(): void {
+		if ( defined( 'ANTHROPIC_API_KEY' ) && '' !== (string) ANTHROPIC_API_KEY ) {
+			$this->markTestSkipped( 'ANTHROPIC_API_KEY constant is defined; encrypted-storage path is unreachable in this environment.' );
+		}
 	}
 
 	public function test_models_and_mock_toggle_persist(): void {

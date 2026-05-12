@@ -58,5 +58,35 @@ function starter_ai_install_tables(): void {
 	dbDelta( $sql_jobs );
 	dbDelta( $sql_usage );
 
+	$conv = $wpdb->prefix . 'starter_ai_chat_conversations';
+	$msgs = $wpdb->prefix . 'starter_ai_chat_messages';
+
+	$sql_conv = "CREATE TABLE {$conv} (
+		id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+		post_id bigint(20) UNSIGNED NOT NULL,
+		user_id bigint(20) UNSIGNED NOT NULL,
+		created_at datetime NOT NULL,
+		updated_at datetime NOT NULL,
+		PRIMARY KEY  (id),
+		KEY post_user_idx (post_id, user_id)
+	) {$charset};";
+
+	$sql_msgs = "CREATE TABLE {$msgs} (
+		id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+		conversation_id bigint(20) UNSIGNED NOT NULL,
+		role varchar(20) NOT NULL,
+		status varchar(20) NOT NULL DEFAULT 'complete',
+		content longtext NOT NULL,
+		tool_calls longtext NULL,
+		error longtext NULL,
+		created_at datetime NOT NULL,
+		updated_at datetime NOT NULL,
+		PRIMARY KEY  (id),
+		KEY conv_idx (conversation_id, id)
+	) {$charset};";
+
+	dbDelta( $sql_conv );
+	dbDelta( $sql_msgs );
+
 	update_option( 'starter_ai_db_version', STARTER_AI_VERSION );
 }

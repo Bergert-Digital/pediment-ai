@@ -45,12 +45,66 @@ Per-user, per-hour defaults (configurable in Settings):
 
 ## Local dev
 
+### First-time setup
+
 ```bash
 composer install
 npm install
 ( cd ../wp-starter-theme && npm install && npm run build )
 npm run build
-npm run env:start    # http://localhost:8898 (admin/password)
+```
+
+### Start wp-env
+
+```bash
+npm run env:start
+```
+
+URLs after start:
+
+- Editor: http://localhost:8898/wp-admin (admin / password)
+- Tests WordPress: http://localhost:8899
+
+Ports are set in [.wp-env.json](.wp-env.json) (8898 / 8899) to avoid colliding with the sibling `wp-starter-theme` wp-env on 8888 / 8889.
+
+### Stop wp-env
+
+`npm run env:stop` hits a wp-env 10.39 path-resolution bug. Use one of these instead:
+
+```bash
+# Stop + remove containers (keeps DB volume — fast restart)
+docker compose -f ~/.wp-env/wp-env-wp-starter-ai-dcebb3bb/docker-compose.yml down
+
+# Just stop the containers (even faster restart)
+docker stop $(docker ps -q --filter "name=wp-env-wp-starter-ai")
+
+# Nuke the DB too (fresh install on next start)
+docker compose -f ~/.wp-env/wp-env-wp-starter-ai-dcebb3bb/docker-compose.yml down -v
+```
+
+### Day-to-day commands
+
+```bash
+# Rebuild the editor bundle after JS/TS changes
+npm run build
+
+# Watch + rebuild on save
+npm run start
+
+# Run PHPUnit (with the workaround for the wp-env run bug)
+docker exec -w /var/www/html/wp-content/plugins/wp-starter-ai \
+  wp-env-wp-starter-ai-dcebb3bb-tests-wordpress-1 vendor/bin/phpunit
+
+# Filter a single test class
+docker exec -w /var/www/html/wp-content/plugins/wp-starter-ai \
+  wp-env-wp-starter-ai-dcebb3bb-tests-wordpress-1 vendor/bin/phpunit --filter ComposeJobTest
+
+# Run Playwright E2E (needs wp-env running)
+npm run e2e
+
+# PHP lint
+composer lint
+composer lint:fix
 ```
 
 Mock mode is on by default in `.wp-env.json` (`STARTER_AI_MOCK=true`), so the plugin returns fixture responses instead of calling Anthropic. Toggle off in plugin settings to test against real Anthropic.

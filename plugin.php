@@ -19,13 +19,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'STARTER_AI_VERSION', '0.1.0' );
+define( 'STARTER_AI_VERSION', '0.2.0' );
 define( 'STARTER_AI_PLUGIN_FILE', __FILE__ );
 define( 'STARTER_AI_PLUGIN_DIR', __DIR__ );
 define( 'STARTER_AI_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
 if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
 	require __DIR__ . '/vendor/autoload.php';
+}
+
+// Action Scheduler's procedural API (as_schedule_single_action etc.) is registered
+// by its bootstrap file, which Composer's autoloader does not execute.
+if ( file_exists( __DIR__ . '/vendor/woocommerce/action-scheduler/action-scheduler.php' ) ) {
+	require_once __DIR__ . '/vendor/woocommerce/action-scheduler/action-scheduler.php';
 }
 
 require_once __DIR__ . '/src/Schema/tables.php';

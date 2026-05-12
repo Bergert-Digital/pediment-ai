@@ -71,4 +71,14 @@ final class Validator {
 		}
 		return $errors;
 	}
+
+	/**
+	 * Validate a single block node (used per tool call in chat).
+	 *
+	 * @param array<string,mixed> $node
+	 * @return string[] Errors; empty means valid.
+	 */
+	public function validateNode( array $node ): array {
+		return $this->validate( [ $node ] );
+	}
 }

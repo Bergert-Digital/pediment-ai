@@ -72,4 +72,36 @@ class ValidatorTest extends \WP_UnitTestCase {
 		] );
 		$this->assertNotEmpty( $errors );
 	}
+
+	public function test_validate_node_returns_no_errors_for_valid_block(): void {
+		$schema = [
+			'core/paragraph' => [ 'attributes' => [ 'content' => [ 'type' => 'string' ] ], 'allowsInnerBlocks' => false ],
+		];
+		$errors = ( new Validator( $schema ) )->validateNode(
+			[ 'name' => 'core/paragraph', 'attributes' => [ 'content' => 'hi' ], 'innerBlocks' => [] ]
+		);
+		$this->assertSame( [], $errors );
+	}
+
+	public function test_validate_node_rejects_unknown_block(): void {
+		$schema = [ 'core/paragraph' => [ 'attributes' => [], 'allowsInnerBlocks' => false ] ];
+		$errors = ( new Validator( $schema ) )->validateNode(
+			[ 'name' => 'core/nope', 'attributes' => [], 'innerBlocks' => [] ]
+		);
+		$this->assertNotEmpty( $errors );
+		$this->assertStringContainsString( 'core/nope', $errors[0] );
+	}
+
+	public function test_validate_node_rejects_inner_when_disallowed(): void {
+		$schema = [
+			'core/paragraph' => [ 'attributes' => [], 'allowsInnerBlocks' => false ],
+			'core/heading'   => [ 'attributes' => [], 'allowsInnerBlocks' => false ],
+		];
+		$errors = ( new Validator( $schema ) )->validateNode( [
+			'name'        => 'core/paragraph',
+			'attributes'  => [],
+			'innerBlocks' => [ [ 'name' => 'core/heading', 'attributes' => [], 'innerBlocks' => [] ] ],
+		] );
+		$this->assertNotEmpty( $errors );
+	}
 }
