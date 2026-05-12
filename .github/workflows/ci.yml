@@ -25,7 +25,7 @@ jobs:
           path: wp-starter-ai
       - uses: actions/checkout@v4
         with:
-          repository: bergert/wp-starter-theme
+          repository: Bergert-Digital/WP-Starter
           ref: main
           token: ${{ secrets.STARTER_THEME_PAT }}
           path: wp-starter-theme
@@ -58,7 +58,7 @@ jobs:
           path: wp-starter-ai
       - uses: actions/checkout@v4
         with:
-          repository: bergert/wp-starter-theme
+          repository: Bergert-Digital/WP-Starter
           ref: main
           token: ${{ secrets.STARTER_THEME_PAT }}
           path: wp-starter-theme

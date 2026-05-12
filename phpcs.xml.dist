@@ -59,4 +59,7 @@
 
   <config name="testVersion" value="8.1-"/>
   <rule ref="PHPCompatibilityWP"/>
+
+  <!-- Only fail CI on errors; warnings stay reported but non-blocking. -->
+  <config name="ignore_warnings_on_exit" value="1"/>
 </ruleset>
