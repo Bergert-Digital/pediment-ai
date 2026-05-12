@@ -5,3 +5,7 @@
   &__progress { display: flex; align-items: center; gap: 8px; padding: 12px 0; }
   &__error    { color: #b32d2e; margin-top: 8px; }
 }
+
+.starter-ai-chat {
+  &__body { padding: 12px 16px; font-size: 13px; }
+}
