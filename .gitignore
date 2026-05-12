@@ -9,3 +9,4 @@ test-results/
 .DS_Store
 schema/blocks.json
 .claude/settings.local.json
+.wp-env.override.json
