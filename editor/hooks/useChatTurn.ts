@@ -2,6 +2,7 @@ import apiFetch from '@wordpress/api-fetch';
 import { useState, useRef, useCallback } from '@wordpress/element';
 import { select } from '@wordpress/data';
 import type { ChatMessage } from './useConversation';
+import applyToolCalls from '../applyToolCalls';
 
 const POLL_MS = 300;
 
@@ -59,6 +60,9 @@ export default function useChatTurn() {
         if (t.status !== 'streaming') {
           if (timer.current !== null) { window.clearInterval(timer.current); timer.current = null; }
           setStreaming(null);
+          if (t.status === 'complete' && Array.isArray(t.tool_calls)) {
+            applyToolCalls(t.tool_calls);
+          }
           args.onComplete({ ...t, id: turnId });
         }
       } catch (e: any) {
