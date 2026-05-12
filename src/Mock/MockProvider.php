@@ -84,7 +84,16 @@ final class MockProvider implements ProviderInterface {
 		if ( ! file_exists( $path ) ) {
 			return new \WP_Error( 'starter_ai_mock_missing', "Missing chat fixture: {$fixture}" );
 		}
-		$events = json_decode( (string) file_get_contents( $path ), true );
+		$raw = (string) file_get_contents( $path );
+
+		// Substitute __SELECTED_CID__ with the actual selected-block clientId so update_block
+		// mock fixtures hit the real block in the user's canvas.
+		if ( false !== strpos( $raw, '__SELECTED_CID__' )
+			&& preg_match( '/"selected_block"\s*:\s*\{[^}]*"clientId"\s*:\s*"([^"]+)"/', $text, $m ) ) {
+			$raw = str_replace( '__SELECTED_CID__', $m[1], $raw );
+		}
+
+		$events = json_decode( $raw, true );
 		if ( ! is_array( $events ) ) {
 			return new \WP_Error( 'starter_ai_mock_invalid', "Invalid chat fixture: {$fixture}" );
 		}
