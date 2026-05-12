@@ -26,7 +26,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: Bergert-Digital/WP-Starter
-          ref: main
+          ref: development
           token: ${{ secrets.STARTER_THEME_PAT }}
           path: wp-starter-theme
       - uses: actions/setup-node@v4
@@ -59,7 +59,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: Bergert-Digital/WP-Starter
-          ref: main
+          ref: development
           token: ${{ secrets.STARTER_THEME_PAT }}
           path: wp-starter-theme
       - uses: actions/setup-node@v4
