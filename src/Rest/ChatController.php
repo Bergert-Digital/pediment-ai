@@ -52,6 +52,21 @@ final class ChatController {
 			'permission_callback' => [ $this, 'permTouchTurn' ],
 			'callback'            => [ $this, 'abortTurn' ],
 		] );
+		register_rest_route( self::NS, '/chat/seen', [
+			'methods'             => 'POST',
+			'permission_callback' => static fn() => is_user_logged_in(),
+			'callback'            => function () {
+				update_user_meta( get_current_user_id(), 'starter_ai_chat_seen', '1' );
+				return new \WP_REST_Response( null, 204 );
+			},
+		] );
+		register_rest_route( self::NS, '/chat/seen', [
+			'methods'             => 'GET',
+			'permission_callback' => static fn() => is_user_logged_in(),
+			'callback'            => function () {
+				return new \WP_REST_Response( [ 'seen' => '1' === (string) get_user_meta( get_current_user_id(), 'starter_ai_chat_seen', true ) ], 200 );
+			},
+		] );
 	}
 
 	// --- Permission callbacks ---
