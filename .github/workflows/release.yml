@@ -1,0 +1,93 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 0.1.2, no leading v)'
+        required: true
+        type: string
+      ref:
+        description: 'Source branch or commit to release from'
+        required: false
+        type: string
+        default: 'main'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate version input
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]]; then
+            echo "::error::version must look like 0.1.2 or 0.1.2-rc.1 (got '$VERSION')"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+
+      - name: Ensure tag does not already exist
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          TAG="v$VERSION"
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "::error::tag $TAG already exists on origin"
+            exit 1
+          fi
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          tools: composer:v2
+          coverage: none
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install Composer prod dependencies
+        run: composer install --no-dev --optimize-autoloader --prefer-dist --no-progress
+
+      - name: Build JS bundle
+        run: |
+          npm ci
+          npm run build
+
+      - name: Patch version metadata in release commit
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          sed -i -E "s/^([[:space:]]*\*[[:space:]]*Version:[[:space:]]+).+$/\1$VERSION/" plugin.php
+          sed -i -E "s/(define\([[:space:]]*'STARTER_AI_VERSION',[[:space:]]*')[^']*('[[:space:]]*\))/\1$VERSION\2/" plugin.php
+          node -e "const f='package.json';const p=require('./'+f);p.version=process.env.VERSION;require('fs').writeFileSync(f,JSON.stringify(p,null,2)+'\n');"
+          grep -E "Version:|STARTER_AI_VERSION" plugin.php
+          grep '"version"' package.json
+
+      - name: Create release commit and push tag
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          TAG="v$VERSION"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f vendor build
+          git add plugin.php package.json
+          git commit -m "build: artifacts for $TAG"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "refs/tags/$TAG"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+        run: gh release create "v$VERSION" --title "v$VERSION" --generate-notes
