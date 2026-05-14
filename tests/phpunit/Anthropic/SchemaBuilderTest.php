@@ -54,39 +54,41 @@ class SchemaBuilderTest extends \WP_UnitTestCase {
 		$this->assertFalse( get_transient( 'starter_ai_schema' ) );
 	}
 
-	public function test_block_namespaces_filter_extends_allowlist() {
+	public function test_block_namespaces_filter_extends_allowlist(): void {
 		\StarterAi\Anthropic\SchemaBuilder::invalidate();
 
 		register_block_type(
 			'acme/promo-banner',
-			array(
+			[
 				'description' => 'A promotional banner.',
-				'attributes'  => array( 'text' => array( 'type' => 'string' ) ),
-			)
+				'attributes'  => [ 'text' => [ 'type' => 'string' ] ],
+			]
 		);
 
-		add_filter( 'starter_ai_block_namespaces', function ( $namespaces ) {
+		$cb = static function ( $namespaces ) {
 			$namespaces[] = 'acme';
 			return $namespaces;
-		} );
+		};
+		add_filter( 'starter_ai_block_namespaces', $cb );
 
 		$schema = ( new \StarterAi\Anthropic\SchemaBuilder() )->build( true );
 
 		$this->assertArrayHasKey( 'acme/promo-banner', $schema['blocks'] );
 		$this->assertSame( 'A promotional banner.', $schema['blocks']['acme/promo-banner']['description'] );
 
+		remove_filter( 'starter_ai_block_namespaces', $cb );
 		unregister_block_type( 'acme/promo-banner' );
 	}
 
-	public function test_block_namespaces_default_excludes_unknown_namespaces() {
+	public function test_block_namespaces_default_excludes_unknown_namespaces(): void {
 		\StarterAi\Anthropic\SchemaBuilder::invalidate();
 
 		register_block_type(
 			'thirdparty/widget',
-			array(
+			[
 				'description' => 'Should be ignored by default.',
-				'attributes'  => array(),
-			)
+				'attributes'  => [],
+			]
 		);
 
 		$schema = ( new \StarterAi\Anthropic\SchemaBuilder() )->build( true );

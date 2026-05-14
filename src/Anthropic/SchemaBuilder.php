@@ -80,6 +80,9 @@ final class SchemaBuilder {
 		/**
 		 * Filter the block namespaces that the AI plugin discovers.
 		 *
+		 * Evaluated only on cache misses. Call SchemaBuilder::invalidate() after
+		 * registering this filter at runtime to force re-discovery.
+		 *
 		 * @param array<int,string> $namespaces Namespace prefixes (without trailing slash).
 		 */
 		$namespaces = (array) apply_filters( 'starter_ai_block_namespaces', array( 'starter', 'client' ) );
