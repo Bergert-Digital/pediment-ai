@@ -36,6 +36,8 @@ final class PromptBuilder {
 		/**
 		 * Filter the system prompt used by the AI plugin for chat turns.
 		 *
+		 * Runs on every chat turn; the result is not cached.
+		 *
 		 * @param string                            $prompt      Composed system prompt.
 		 * @param array<string,array<string,mixed>> $blockSchema The block schema available to this turn.
 		 */
