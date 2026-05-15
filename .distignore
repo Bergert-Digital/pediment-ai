@@ -16,3 +16,6 @@ composer.json
 composer.lock
 editor
 AGENTS.md
+docs
+.mcp.json
+.claude
