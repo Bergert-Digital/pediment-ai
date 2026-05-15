@@ -58,4 +58,37 @@ final class TurnDispatcher {
 		delete_transient( $this->inputKey( $turn_id ) );
 		return $v;
 	}
+
+	/**
+	 * Loopback base URL. Defaults to the site home. Override for containerised
+	 * dev (e.g. wp-env: define STARTER_AI_LOOPBACK_URL = 'http://127.0.0.1')
+	 * because the mapped host port is not reachable from inside the container.
+	 */
+	public function loopbackUrl(): string {
+		$base = defined( 'STARTER_AI_LOOPBACK_URL' ) ? (string) STARTER_AI_LOOPBACK_URL : home_url();
+		/**
+		 * Filter the loopback base URL used to run chat turns out-of-band.
+		 *
+		 * @param string $base Base origin, no trailing path.
+		 */
+		return (string) apply_filters( 'starter_ai_loopback_url', $base );
+	}
+
+	public function dispatch( int $turn_id, string $token ): void {
+		$base = rtrim( $this->loopbackUrl(), '/' );
+		$url  = $base . '/?rest_route=' . rawurlencode( '/' . \StarterAi\Rest\ChatController::NS . '/chat/turns/' . $turn_id . '/run' );
+
+		$host = (string) wp_parse_url( home_url(), PHP_URL_HOST );
+
+		wp_remote_post( $url, [
+			'timeout'   => 0.01,
+			'blocking'  => false,
+			'sslverify' => false,
+			'headers'   => array_filter( [
+				'X-Starter-Ai-Token' => $token,
+				'Host'               => $host,
+			] ),
+			'body'      => [ 'turn_id' => $turn_id ],
+		] );
+	}
 }
