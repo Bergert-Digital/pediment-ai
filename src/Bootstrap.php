@@ -80,7 +80,7 @@ final class Bootstrap {
 			return '' !== $val ? $val : $default;
 		} );
 		add_filter( 'starter_ai_model_edit', static function ( $default ) {
-			$val = ( new \StarterAi\Settings\OptionsStore() )->get( 'model_compose', '' );
+			$val = ( new \StarterAi\Settings\OptionsStore() )->get( 'model_edit', '' );
 			return '' !== $val ? $val : $default;
 		} );
 		add_filter( 'starter_ai_model_refine', static function ( $default ) {
