@@ -127,18 +127,30 @@ final class ChatController {
 		$tree_source = is_array( $r->get_param( 'block_tree' ) ) ? $r->get_param( 'block_tree' ) : [];
 		$tree        = new VirtualTree( $tree_source );
 
-		$response = new \WP_REST_Response( [ 'turn_id' => $turn_id ], 202 );
+		$dispatcher = new \StarterAi\Chat\TurnDispatcher();
+		/**
+		 * Dispatch mode: 'auto' (non-blocking loopback; streams) or 'inline'
+		 * (run synchronously before responding; no streaming, but needs no
+		 * loopback). Default 'auto'.
+		 *
+		 * @param string $mode
+		 */
+		$mode = (string) apply_filters( 'starter_ai_dispatch_mode', 'auto' );
 
-		// In production we close the response before running the turn.
-		// In tests (no fastcgi_finish_request, or WP_TESTS_DOMAIN defined), we run inline.
-		if ( $this->canDeferResponse() ) {
-			$this->respondAndFlush( $response );
+		if ( 'inline' === $mode ) {
 			$this->processTurn( $turn_id, $conversation_id, $tree, $selected, $message );
-			exit;
+			return new \WP_REST_Response( [ 'turn_id' => $turn_id ], 202 );
 		}
 
-		$this->processTurn( $turn_id, $conversation_id, $tree, $selected, $message );
-		return $response;
+		$dispatcher->stashInput( $turn_id, [
+			'conversation_id' => $conversation_id,
+			'message'         => $message,
+			'selected_block'  => $selected,
+			'block_tree'      => is_array( $r->get_param( 'block_tree' ) ) ? $r->get_param( 'block_tree' ) : [],
+		] );
+		$dispatcher->dispatch( $turn_id, $dispatcher->mintToken( $turn_id ) );
+
+		return new \WP_REST_Response( [ 'turn_id' => $turn_id ], 202 );
 	}
 
 	public function getTurn( \WP_REST_Request $r ): \WP_REST_Response {
@@ -222,16 +234,4 @@ final class ChatController {
 		);
 	}
 
-	private function canDeferResponse(): bool {
-		return function_exists( 'fastcgi_finish_request' ) && ! defined( 'WP_TESTS_DOMAIN' );
-	}
-
-	private function respondAndFlush( \WP_REST_Response $r ): void {
-		status_header( $r->get_status() );
-		nocache_headers();
-		echo wp_json_encode( $r->get_data() );
-		if ( function_exists( 'fastcgi_finish_request' ) ) {
-			fastcgi_finish_request();
-		}
-	}
 }

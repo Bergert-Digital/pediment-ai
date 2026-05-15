@@ -17,3 +17,9 @@ tests_add_filter( 'muplugins_loaded', function () {
 } );
 
 require $_tests_dir . '/includes/bootstrap.php';
+
+// Fire rest_api_init once so that register_rest_route() calls in setUp() do not
+// trigger _doing_it_wrong() notices (WP >= 5.1 requires routes to be registered
+// on this action; test setUp() methods that call ::register() directly need the
+// action to have fired at least once in the process).
+do_action( 'rest_api_init' );

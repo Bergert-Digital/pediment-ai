@@ -85,8 +85,11 @@ final class TurnDispatcher {
 		}
 
 		$base = rtrim( $this->loopbackUrl(), '/' );
-		// The /run route is registered on ChatController in Task 4.
-		$url  = $base . '/?rest_route=' . rawurlencode( '/' . \StarterAi\Rest\ChatController::NS . '/chat/turns/' . $turn_id . '/run' );
+		// Use an unencoded ?rest_route= value so that the URL contains a literal
+		// /run path segment, which allows test interception via pre_http_request
+		// and a simple strpos check.
+		$route = '/' . \StarterAi\Rest\ChatController::NS . '/chat/turns/' . $turn_id . '/run';
+		$url   = $base . '/?rest_route=' . $route;
 
 		$host = (string) wp_parse_url( home_url(), PHP_URL_HOST );
 
