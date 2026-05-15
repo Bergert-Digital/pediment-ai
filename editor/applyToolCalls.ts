@@ -1,5 +1,6 @@
 import { dispatch, select } from '@wordpress/data';
 import { createBlock } from '@wordpress/blocks';
+import { normalizeSections } from './normalizeSections';
 
 type ToolCall = { tool: string; input: any; output?: any; is_error?: boolean };
 
@@ -65,6 +66,13 @@ export default function applyToolCalls(calls: ToolCall[]): void {
         }
       }
     }
+    normalizeSections(
+      {
+        getBlocks: () => blockSelect.getBlocks() as any[],
+        replaceBlocks: (ids: string[], blocks: any[]) => blockEditor.replaceBlocks(ids, blocks),
+      },
+      createBlock
+    );
   });
 }
 

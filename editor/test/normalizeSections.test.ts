@@ -1,4 +1,4 @@
-import { planSections, type BlockLike } from '../normalizeSections';
+import { planSections, normalizeSections, type BlockLike } from '../normalizeSections';
 
 const b = (name: string, className?: string): BlockLike => ({
   name,
@@ -42,5 +42,44 @@ describe('planSections', () => {
       { kind: 'wrap', indices: [1] },
       { kind: 'wrap', indices: [4] },
     ]);
+  });
+});
+
+describe('normalizeSections applier', () => {
+  it('replaces root with section groups and drops separators', () => {
+    const root = [
+      { clientId: 'h', name: 'starter/hero', attributes: {}, innerBlocks: [] },
+      { clientId: 's', name: 'core/separator', attributes: {}, innerBlocks: [] },
+      { clientId: 'g', name: 'core/heading', attributes: {}, innerBlocks: [] },
+      { clientId: 'p', name: 'core/paragraph', attributes: {}, innerBlocks: [] },
+    ];
+    const replaceBlocks = jest.fn();
+    const created: any[] = [];
+    normalizeSections(
+      { getBlocks: () => root, replaceBlocks },
+      (name, attrs, inner) => {
+        const blk = { name, attributes: attrs, innerBlocks: inner, clientId: 'new-' + created.length };
+        created.push(blk);
+        return blk;
+      }
+    );
+    expect(replaceBlocks).toHaveBeenCalledTimes(1);
+    const [ids, blocks] = replaceBlocks.mock.calls[0];
+    expect(ids).toEqual(['h', 's', 'g', 'p']);
+    expect(blocks).toHaveLength(2);
+    expect(blocks[0]).toMatchObject({ name: 'core/group', attributes: { tagName: 'section', className: 'starter-section' } });
+    expect(blocks[0].innerBlocks.map((x: any) => x.clientId)).toEqual(['h']);
+    expect(blocks[1].innerBlocks.map((x: any) => x.clientId)).toEqual(['g', 'p']);
+  });
+
+  it('is a no-op-shaped result when already all sections (keeps same blocks)', () => {
+    const root = [
+      { clientId: 'a', name: 'core/group', attributes: { className: 'starter-section' }, innerBlocks: [] },
+      { clientId: 'b', name: 'core/group', attributes: { className: 'starter-section' }, innerBlocks: [] },
+    ];
+    const replaceBlocks = jest.fn();
+    normalizeSections({ getBlocks: () => root, replaceBlocks }, (n, a, i) => ({ name: n, attributes: a, innerBlocks: i }));
+    const [, blocks] = replaceBlocks.mock.calls[0];
+    expect(blocks).toEqual(root);
   });
 });

@@ -43,3 +43,38 @@ export function planSections(blocks: BlockLike[]): SectionPlan[] {
   flush();
   return out;
 }
+
+type RootBlock = { clientId: string; name: string; attributes: any; innerBlocks: any[] };
+
+export type NormalizeDeps = {
+  getBlocks: () => RootBlock[];
+  replaceBlocks: (clientIds: string[], blocks: any[]) => void;
+};
+
+export type CreateBlock = (name: string, attributes: any, innerBlocks: any[]) => any;
+
+/**
+ * Deterministically rewrite the editor root into section groups.
+ * Idempotent: already-correct section groups are reused unchanged.
+ */
+export function normalizeSections(deps: NormalizeDeps, create: CreateBlock): void {
+  const root = deps.getBlocks();
+  if (root.length === 0) return;
+
+  const plan = planSections(root);
+
+  const next = plan.map((p) =>
+    p.kind === 'keep'
+      ? root[p.index]
+      : create(
+          'core/group',
+          { tagName: 'section', className: SECTION_CLASS, layout: { type: 'default' } },
+          p.indices.map((i) => root[i])
+        )
+  );
+
+  deps.replaceBlocks(
+    root.map((b) => b.clientId),
+    next
+  );
+}
