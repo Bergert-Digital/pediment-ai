@@ -52,6 +52,11 @@ final class ChatController {
 			'permission_callback' => [ $this, 'permTouchTurn' ],
 			'callback'            => [ $this, 'abortTurn' ],
 		] );
+		register_rest_route( self::NS, '/chat/turns/(?P<id>\d+)/run', [
+			'methods'             => 'POST',
+			'permission_callback' => [ $this, 'permRunTurn' ],
+			'callback'            => [ $this, 'runTurn' ],
+		] );
 	}
 
 	// --- Permission callbacks ---
@@ -80,6 +85,12 @@ final class ChatController {
 			(int) $r->get_param( 'id' )
 		), ARRAY_A );
 		return $row && current_user_can( 'edit_post', (int) $row['post_id'] ) && (int) $row['user_id'] === get_current_user_id();
+	}
+
+	public function permRunTurn( \WP_REST_Request $r ): bool {
+		$turn_id = (int) $r->get_param( 'id' );
+		$token   = (string) $r->get_header( 'X-Starter-Ai-Token' );
+		return '' !== $token && ( new \StarterAi\Chat\TurnDispatcher() )->consumeToken( $turn_id, $token );
 	}
 
 	// --- Handlers ---
@@ -145,6 +156,34 @@ final class ChatController {
 
 	public function abortTurn( \WP_REST_Request $r ): \WP_REST_Response {
 		( new ConversationStore() )->abort( (int) $r->get_param( 'id' ) );
+		return new \WP_REST_Response( null, 204 );
+	}
+
+	public function runTurn( \WP_REST_Request $r ): \WP_REST_Response {
+		$turn_id = (int) $r->get_param( 'id' );
+		$store   = new ConversationStore();
+		$msg     = $store->getMessage( $turn_id );
+
+		// Idempotency: only a freshly-started assistant turn may be run.
+		if ( ! $msg || 'streaming' !== $msg['status'] ) {
+			return new \WP_REST_Response( null, 204 );
+		}
+
+		$input = ( new \StarterAi\Chat\TurnDispatcher() )->takeInput( $turn_id );
+		if ( null === $input ) {
+			$store->fail( $turn_id, 'dispatch_lost', 'Turn inputs expired before the runner started.' );
+			return new \WP_REST_Response( null, 204 );
+		}
+
+		ignore_user_abort( true );
+		$tree = new VirtualTree( is_array( $input['block_tree'] ?? null ) ? $input['block_tree'] : [] );
+		$this->processTurn(
+			$turn_id,
+			(int) $input['conversation_id'],
+			$tree,
+			$input['selected_block'] ?? null,
+			(string) $input['message']
+		);
 		return new \WP_REST_Response( null, 204 );
 	}
 
