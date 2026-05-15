@@ -51,6 +51,13 @@ class PromptBuilderTest extends \WP_UnitTestCase {
 		$this->assertSame( 'second prompt', $sliced[1]['content'][0]['text'] );
 	}
 
+	public function test_system_prompt_instructs_section_grouping(): void {
+		$pb = new \StarterAi\Chat\PromptBuilder( [ 'core/group' => [ 'description' => 'A section container.' ] ] );
+		$prompt = $pb->systemPrompt();
+		$this->assertStringContainsString( 'starter-section', $prompt );
+		$this->assertStringContainsString( 'core/group', $prompt );
+	}
+
 	public function test_system_prompt_is_filterable(): void {
 		$cb = static function ( $prompt, $schema ) {
 			return $prompt . "\n\nAcme brand voice: confident and concise.";
