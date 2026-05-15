@@ -90,7 +90,7 @@ final class ChatController {
 	public function permRunTurn( \WP_REST_Request $r ): bool {
 		$turn_id = (int) $r->get_param( 'id' );
 		$token   = (string) $r->get_header( 'X-Starter-Ai-Token' );
-		return '' !== $token && ( new \StarterAi\Chat\TurnDispatcher() )->consumeToken( $turn_id, $token );
+		return '' !== $token && ( new \StarterAi\Chat\TurnDispatcher() )->verifyToken( $turn_id, $token );
 	}
 
 	// --- Handlers ---
@@ -161,6 +161,10 @@ final class ChatController {
 
 	public function runTurn( \WP_REST_Request $r ): \WP_REST_Response {
 		$turn_id = (int) $r->get_param( 'id' );
+		$token = (string) $r->get_header( 'X-Starter-Ai-Token' );
+		if ( ! ( new \StarterAi\Chat\TurnDispatcher() )->consumeToken( $turn_id, $token ) ) {
+			return new \WP_REST_Response( null, 403 );
+		}
 		$store   = new ConversationStore();
 		$msg     = $store->getMessage( $turn_id );
 

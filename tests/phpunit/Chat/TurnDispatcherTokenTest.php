@@ -22,4 +22,14 @@ class TurnDispatcherTokenTest extends \WP_UnitTestCase {
 		// A failed probe must NOT consume the real token.
 		$this->assertTrue( $d->consumeToken( 7, $token ), 'correct token still valid after a failed probe' );
 	}
+
+	public function test_verify_is_non_destructive_then_consume_is_one_time(): void {
+		$d     = new TurnDispatcher();
+		$token = $d->mintToken( 55 );
+
+		$this->assertTrue( $d->verifyToken( 55, $token ) );
+		$this->assertTrue( $d->verifyToken( 55, $token ), 'verify does not consume' );
+		$this->assertTrue( $d->consumeToken( 55, $token ) );
+		$this->assertFalse( $d->verifyToken( 55, $token ), 'gone after consume' );
+	}
 }

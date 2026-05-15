@@ -27,6 +27,11 @@ final class TurnDispatcher {
 		return $token;
 	}
 
+	public function verifyToken( int $turn_id, string $token ): bool {
+		$stored = get_transient( $this->tokenKey( $turn_id ) );
+		return is_string( $stored ) && '' !== $stored && hash_equals( $stored, $token );
+	}
+
 	public function consumeToken( int $turn_id, string $token ): bool {
 		$stored = get_transient( $this->tokenKey( $turn_id ) );
 		if ( ! is_string( $stored ) || '' === $stored || ! hash_equals( $stored, $token ) ) {
