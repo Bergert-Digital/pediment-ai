@@ -35,4 +35,27 @@ final class TurnDispatcher {
 		delete_transient( $this->tokenKey( $turn_id ) );
 		return true;
 	}
+
+	private function inputKey( int $turn_id ): string {
+		return 'starter_ai_turn_input_' . $turn_id;
+	}
+
+	/**
+	 * @param array<string,mixed> $payload
+	 */
+	public function stashInput( int $turn_id, array $payload ): void {
+		set_transient( $this->inputKey( $turn_id ), $payload, self::TTL );
+	}
+
+	/**
+	 * @return array<string,mixed>|null
+	 */
+	public function takeInput( int $turn_id ): ?array {
+		$v = get_transient( $this->inputKey( $turn_id ) );
+		if ( ! is_array( $v ) ) {
+			return null;
+		}
+		delete_transient( $this->inputKey( $turn_id ) );
+		return $v;
+	}
 }
