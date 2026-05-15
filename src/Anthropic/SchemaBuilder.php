@@ -59,6 +59,14 @@ final class SchemaBuilder {
 			'attributes'        => [],
 			'allowsInnerBlocks' => false,
 		],
+		'core/group' => [
+			'description'       => 'A section container. Wrap each distinct page section in one.',
+			'attributes'        => [
+				'tagName'   => [ 'type' => 'string', 'default' => 'section' ],
+				'className' => [ 'type' => 'string' ],
+			],
+			'allowsInnerBlocks' => true,
+		],
 	];
 
 	/**

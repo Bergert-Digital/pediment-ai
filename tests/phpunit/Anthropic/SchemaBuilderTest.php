@@ -80,6 +80,12 @@ class SchemaBuilderTest extends \WP_UnitTestCase {
 		unregister_block_type( 'acme/promo-banner' );
 	}
 
+	public function test_core_group_is_allowlisted_with_inner_blocks(): void {
+		$schema = ( new SchemaBuilder() )->build( true );
+		$this->assertArrayHasKey( 'core/group', $schema['blocks'] );
+		$this->assertTrue( $schema['blocks']['core/group']['allowsInnerBlocks'] );
+	}
+
 	public function test_block_namespaces_default_excludes_unknown_namespaces(): void {
 		\StarterAi\Anthropic\SchemaBuilder::invalidate();
 
