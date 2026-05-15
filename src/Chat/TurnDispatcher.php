@@ -75,7 +75,12 @@ final class TurnDispatcher {
 	}
 
 	public function dispatch( int $turn_id, string $token ): void {
+		if ( '' === $token ) {
+			return;
+		}
+
 		$base = rtrim( $this->loopbackUrl(), '/' );
+		// The /run route is registered on ChatController in Task 4.
 		$url  = $base . '/?rest_route=' . rawurlencode( '/' . \StarterAi\Rest\ChatController::NS . '/chat/turns/' . $turn_id . '/run' );
 
 		$host = (string) wp_parse_url( home_url(), PHP_URL_HOST );

@@ -21,6 +21,19 @@ class TurnDispatcherLoopbackTest extends \WP_UnitTestCase {
 		$this->assertLessThanOrEqual( 1.0, $captured['args']['timeout'] );
 	}
 
+	public function test_empty_token_does_not_fire_a_request(): void {
+		$fired = false;
+		add_filter( 'pre_http_request', function ( $pre ) use ( &$fired ) {
+			$fired = true;
+			return [ 'response' => [ 'code' => 200 ], 'body' => '' ];
+		} );
+
+		( new TurnDispatcher() )->dispatch( 9, '' );
+
+		remove_all_filters( 'pre_http_request' );
+		$this->assertFalse( $fired, 'empty token must not fire a loopback' );
+	}
+
 	public function test_loopback_base_is_filterable(): void {
 		$seen = '';
 		add_filter( 'pre_http_request', function ( $pre, $args, $url ) use ( &$seen ) {
