@@ -233,5 +233,4 @@ final class ChatController {
 			currentUserMsg: $message
 		);
 	}
-
 }

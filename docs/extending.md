@@ -67,3 +67,21 @@ add_filter( 'starter_ai_max_iterations', fn() => 30 );
 ```
 
 If a "create a full landing page"-class request reports *Reached maximum tool-use iterations*, the turn ran out of one of these budgets before finishing — raise `starter_ai_max_tokens` first (so each round-trip carries a larger batch), then `starter_ai_max_iterations` for headroom.
+
+## Turn execution mode (streaming vs inline)
+
+A chat turn runs out-of-band via a non-blocking loopback request so the
+browser can poll and see streaming. Controls:
+
+```php
+// Force synchronous execution (no streaming) — for hosts where loopback
+// is blocked. Default is 'auto' (loopback).
+add_filter( 'starter_ai_dispatch_mode', fn() => 'inline' );
+
+// Override the loopback origin. Needed in containers (e.g. wp-env) where
+// the public host:port is not reachable from inside the container.
+add_filter( 'starter_ai_loopback_url', fn() => 'http://127.0.0.1' );
+```
+
+Or define `STARTER_AI_LOOPBACK_URL` (constant) for the same effect without a
+filter — preferred for wp-env via `.wp-env.override.json`.
