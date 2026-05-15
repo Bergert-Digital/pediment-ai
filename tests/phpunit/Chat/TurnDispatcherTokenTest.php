@@ -14,9 +14,12 @@ class TurnDispatcherTokenTest extends \WP_UnitTestCase {
 	}
 
 	public function test_wrong_token_is_rejected(): void {
-		$d = new TurnDispatcher();
-		$d->mintToken( 7 );
+		$d     = new TurnDispatcher();
+		$token = $d->mintToken( 7 );
 		$this->assertFalse( $d->consumeToken( 7, 'not-the-token' ) );
 		$this->assertFalse( $d->consumeToken( 999, 'anything' ), 'unknown turn rejected' );
+
+		// A failed probe must NOT consume the real token.
+		$this->assertTrue( $d->consumeToken( 7, $token ), 'correct token still valid after a failed probe' );
 	}
 }
