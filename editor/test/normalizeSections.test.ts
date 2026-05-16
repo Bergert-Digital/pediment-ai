@@ -147,7 +147,12 @@ describe( 'normalizeSections applier', () => {
 		expect( blocks ).toHaveLength( 2 );
 		expect( blocks[ 0 ] ).toMatchObject( {
 			name: 'core/group',
-			attributes: { tagName: 'section', className: 'starter-section' },
+			attributes: {
+				tagName: 'section',
+				align: 'full',
+				className: 'starter-section',
+				layout: { type: 'default' },
+			},
 		} );
 		expect( blocks[ 0 ].innerBlocks.map( ( x: any ) => x.name ) ).toEqual( [
 			'starter/hero',
@@ -158,7 +163,9 @@ describe( 'normalizeSections applier', () => {
 		] );
 	} );
 
-	it( 'is a no-op-shaped result when already all sections (keeps same blocks)', () => {
+	it( 'enforces full-width section attrs on kept model groups (align:full guarantee)', () => {
+		// Model emits a group with starter-section but NO align (schema can't
+		// express it); a constrained post-content would clamp it to 720px.
 		const root = [
 			{
 				clientId: 'a',
@@ -180,10 +187,63 @@ describe( 'normalizeSections applier', () => {
 		);
 		const [ , blocks ] = replaceBlocks.mock.calls[ 0 ];
 		expect( blocks ).toHaveLength( root.length );
-		blocks.forEach( ( blk: any, idx: number ) => {
-			expect( blk.name ).toEqual( root[ idx ].name );
-			expect( blk.attributes ).toEqual( root[ idx ].attributes );
+		blocks.forEach( ( blk: any ) => {
+			expect( blk.name ).toEqual( 'core/group' );
+			expect( blk.attributes ).toMatchObject( {
+				tagName: 'section',
+				align: 'full',
+				layout: { type: 'default' },
+			} );
+			expect( blk.attributes.className.split( /\s+/ ) ).toContain(
+				'starter-section'
+			);
 		} );
+	} );
+
+	it( 'preserves extra model-group attributes while enforcing the section shape', () => {
+		const root = [
+			{
+				clientId: 'a',
+				name: 'core/group',
+				attributes: {
+					className: 'brand starter-section',
+					backgroundColor: 'surface-elevated',
+					style: { spacing: { padding: { top: '2rem' } } },
+				},
+				innerBlocks: [
+					{
+						clientId: 'x',
+						name: 'core/paragraph',
+						attributes: {},
+						innerBlocks: [],
+					},
+				],
+			},
+		];
+		const replaceBlocks = jest.fn();
+		normalizeSections(
+			{ getBlocks: () => root, replaceBlocks },
+			( n: string, a: any, i: any ) => ( {
+				name: n,
+				attributes: a,
+				innerBlocks: i,
+			} )
+		);
+		const [ , blocks ] = replaceBlocks.mock.calls[ 0 ];
+		expect( blocks[ 0 ].attributes ).toMatchObject( {
+			align: 'full',
+			tagName: 'section',
+			backgroundColor: 'surface-elevated',
+			style: { spacing: { padding: { top: '2rem' } } },
+			layout: { type: 'default' },
+		} );
+		expect( blocks[ 0 ].attributes.className.split( /\s+/ ) ).toEqual(
+			expect.arrayContaining( [ 'brand', 'starter-section' ] )
+		);
+		// children preserved
+		expect( blocks[ 0 ].innerBlocks.map( ( x: any ) => x.name ) ).toEqual( [
+			'core/paragraph',
+		] );
 	} );
 
 	it( 'clones wrapped children so no new block reuses an original (removed) clientId', () => {

@@ -86,8 +86,34 @@ function cloneBlock( b: RootBlock, create: CreateBlock ): any {
 }
 
 /**
- * Deterministically rewrite the editor root into section groups.
- * Idempotent: already-correct section groups are reused unchanged.
+ * Canonical section-group attributes. `align: 'full'` is the guarantee that
+ * the section escapes the constrained post-content content-width cap (a flow
+ * `core/group` alone stays clamped to `contentSize`); the theme's
+ * `section.starter-section > :where(:not(.alignfull):not(.alignwide))` rule
+ * then re-constrains inner content. `base` (a model group's attributes) is
+ * preserved so backgrounds/spacing survive, but the section-shape keys are
+ * always enforced — the model schema can't express `align` and per spec the
+ * normalizer, not the LLM, is the guarantee.
+ */
+function sectionAttributes( base?: any ): any {
+	const tokens =
+		typeof base?.className === 'string'
+			? base.className.split( /\s+/ ).filter( Boolean )
+			: [];
+	if ( ! tokens.includes( SECTION_CLASS ) ) tokens.push( SECTION_CLASS );
+	return {
+		...( base ?? {} ),
+		tagName: 'section',
+		align: 'full',
+		className: tokens.join( ' ' ),
+		layout: { type: 'default' },
+	};
+}
+
+/**
+ * Deterministically rewrite the editor root into full-width section groups.
+ * Idempotent in structure; kept model groups have their section-shape attrs
+ * enforced (notably `align: 'full'`) while extra attrs and children survive.
  */
 export function normalizeSections(
 	deps: NormalizeDeps,
@@ -98,19 +124,21 @@ export function normalizeSections(
 
 	const plan = planSections( root );
 
-	const next = plan.map( ( p ) =>
-		p.kind === 'keep'
-			? cloneBlock( root[ p.index ], create )
-			: create(
-					'core/group',
-					{
-						tagName: 'section',
-						className: SECTION_CLASS,
-						layout: { type: 'default' },
-					},
-					p.indices.map( ( i ) => cloneBlock( root[ i ], create ) )
-			  )
-	);
+	const next = plan.map( ( p ) => {
+		if ( p.kind === 'keep' ) {
+			const g = root[ p.index ];
+			return create(
+				'core/group',
+				sectionAttributes( g.attributes ),
+				( g.innerBlocks ?? [] ).map( ( c ) => cloneBlock( c, create ) )
+			);
+		}
+		return create(
+			'core/group',
+			sectionAttributes(),
+			p.indices.map( ( i ) => cloneBlock( root[ i ], create ) )
+		);
+	} );
 
 	deps.replaceBlocks(
 		root.map( ( b ) => b.clientId ),
