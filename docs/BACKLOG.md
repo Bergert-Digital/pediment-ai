@@ -29,7 +29,7 @@ Strike items with `~~text~~` when struck during validation. Check `[x]` when don
 
 - [ ] **CHANGELOG.md.** We don't have one. We're about to ship a meaningful 0.2.0 (chat sidebar). Start tracking releases — even a flat list of dates + bullet points beats nothing.
 - [ ] **Auto-open sidebar discoverability.** `0b8ce07` auto-opens the chat sidebar on first activation. After the user dismisses it once, does it stay dismissed across reloads? Confirm with an E2E run.
-- [ ] **Quick-action coverage for all theme block types.** Spec covers paragraph, heading, list, image, generic fallback. Audit `wp-starter-theme`'s registered blocks and confirm there's a reasonable quick-action set for each, or a graceful "Improve / Rewrite" fallback.
+- [ ] **Quick-action coverage for all theme block types.** Spec covers paragraph, heading, list, image, generic fallback. Audit `pediment`'s registered blocks and confirm there's a reasonable quick-action set for each, or a graceful "Improve / Rewrite" fallback.
 - [ ] **Settings page polish — link out to the privacy doc.** The settings screen should link to `docs/privacy.md` (or the hosted version) so admins can read it without leaving the dashboard.
 - [ ] **WP-CLI: dump-schema currently exists. Add `wp starter-ai clear-chat-history` for testing.** Useful in dev to reset the conversation store without DROP TABLE.
 - [ ] **Rate limit feedback in chat UI.** When rate-limited, the chat should display a clear "You've used 30/30 composes this hour. Resets in 12 min." not a generic error.

@@ -1,6 +1,6 @@
 {
   "name": "bergert/wp-starter-ai",
-  "description": "WordPress AI page composer plugin for wp-starter-theme",
+  "description": "WordPress AI page composer plugin for pediment",
   "type": "wordpress-plugin",
   "license": "GPL-2.0-or-later",
   "require": {

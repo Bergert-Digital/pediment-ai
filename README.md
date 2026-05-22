@@ -1,11 +1,11 @@
 # Starter AI Plugin
 
-WordPress plugin that adds AI-powered authoring to the [wp-starter-theme](https://github.com/bergert/wp-starter-theme): Compose a page from a prompt, Edit an existing page, Refine a single block.
+WordPress plugin that adds AI-powered authoring to the [pediment](https://github.com/bergert/pediment): Compose a page from a prompt, Edit an existing page, Refine a single block.
 
 ## Requirements
 
 - WordPress 6.4+, PHP 8.1+
-- `wp-starter-theme` (Plan A) installed and active
+- `pediment` (Plan A) installed and active
 - Anthropic API key
 
 ## Install (in a Bedrock client repo)
@@ -50,7 +50,7 @@ Per-user, per-hour defaults (configurable in Settings):
 ```bash
 composer install
 npm install
-( cd ../wp-starter-theme && npm install && npm run build )
+( cd ../pediment && npm install && npm run build )
 npm run build
 ```
 
@@ -65,7 +65,7 @@ URLs after start:
 - Editor: http://localhost:8898/wp-admin (admin / password)
 - Tests WordPress: http://localhost:8899
 
-Ports are set in [.wp-env.json](.wp-env.json) (8898 / 8899) to avoid colliding with the sibling `wp-starter-theme` wp-env on 8888 / 8889.
+Ports are set in [.wp-env.json](.wp-env.json) (8898 / 8899) to avoid colliding with the sibling `pediment` wp-env on 8888 / 8889.
 
 ### Stop wp-env
 

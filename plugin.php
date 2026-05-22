@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Starter AI
  * Plugin URI:        https://github.com/bergert/wp-starter-ai
- * Description:       Gutenberg AI composer for wp-starter-theme: compose, edit, and refine pages with Claude.
+ * Description:       Gutenberg AI composer for pediment: compose, edit, and refine pages with Claude.
  * Version:           0.1.0
  * Requires at least: 6.4
  * Requires PHP:      8.1
