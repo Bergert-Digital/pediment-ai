@@ -2,12 +2,12 @@
 /**
  * Discovers the block schema at runtime and caches it in a transient.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\Anthropic;
+namespace PedimentAi\Anthropic;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Builds the runtime block schema by inspecting WP_Block_Type_Registry.
  */
 final class SchemaBuilder {
-	public const TRANSIENT_KEY  = 'starter_ai_schema';
+	public const TRANSIENT_KEY  = 'pediment_ai_schema';
 	private const TRANSIENT_TTL = HOUR_IN_SECONDS;
 
 	private const CORE_ALLOWLIST = [
@@ -93,7 +93,7 @@ final class SchemaBuilder {
 		 *
 		 * @param array<int,string> $namespaces Namespace prefixes (without trailing slash).
 		 */
-		$namespaces = (array) apply_filters( 'starter_ai_block_namespaces', array( 'starter', 'client' ) );
+		$namespaces = (array) apply_filters( 'pediment_ai_block_namespaces', array( 'pediment', 'client' ) );
 		$pattern    = '#^(' . implode( '|', array_map( 'preg_quote', $namespaces ) ) . ')/#';
 
 		$registry = \WP_Block_Type_Registry::get_instance();
@@ -154,6 +154,6 @@ final class SchemaBuilder {
 	 * Heuristic for blocks that allow inner blocks but don't declare it via supports.
 	 */
 	private function guessAllowsInnerBlocks( string $name ): bool {
-		return in_array( $name, [ 'starter/faq', 'starter/prose' ], true );
+		return in_array( $name, [ 'pediment/faq', 'pediment/prose' ], true );
 	}
 }

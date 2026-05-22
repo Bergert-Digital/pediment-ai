@@ -1,23 +1,23 @@
-# WordPress Starter AI Plugin (Plan B) Implementation Plan
+# WordPress Pediment AI Plugin (Plan B) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 > **Depends on Plan A.** This plugin discovers blocks at runtime via `WP_Block_Type_Registry` and operates on the block tree produced by the starter theme. Plan A v0.1.0 must be installed (via Composer or wp-env mount) for local dev and tests.
 
-**Goal:** Build `wp-starter-ai`: a WordPress plugin that adds three AI-powered authoring flows — Compose (new page from prompt), Edit (modify existing page), Refine (one block from prompt) — to the Gutenberg editor. Anthropic Claude as the model, polling transport, web_fetch enabled, mock mode for tests.
+**Goal:** Build `pediment-ai`: a WordPress plugin that adds three AI-powered authoring flows — Compose (new page from prompt), Edit (modify existing page), Refine (one block from prompt) — to the Gutenberg editor. Anthropic Claude as the model, polling transport, web_fetch enabled, mock mode for tests.
 
 **Architecture:** PHP REST + Action Scheduler background workers for compose/edit (long jobs), blocking PHP request for refine (short jobs). Editor sidebar in React, built by `@wordpress/scripts`. Schema discovered at runtime from `WP_Block_Type_Registry` and sent as an Anthropic tool input JSON schema. Job state in a small custom table; status polled via REST. Mock provider returns fixtures in tests / dev. Usage telemetry in a sibling table. Per-user rate limits via transients.
 
 **Tech Stack:** WordPress 6.4+, PHP 8.1+, `@wordpress/scripts`, TypeScript + React, Action Scheduler (`woocommerce/action-scheduler` Composer package), PHPUnit, Playwright, GitHub Actions CI.
 
-**Repo location:** `/Users/jonas/Entwicklung/wp-starter-ai/` (sibling to wp-starter-theme).
+**Repo location:** `/Users/jonas/Entwicklung/pediment-ai/` (sibling to pediment).
 
 ---
 
 ## File Structure
 
 ```
-wp-starter-ai/
+pediment-ai/
   plugin.php                            Plugin header + bootstrap
   composer.json                         Composer deps (action-scheduler, phpcs, phpunit)
   package.json                          @wordpress/scripts, Playwright
@@ -25,7 +25,7 @@ wp-starter-ai/
   phpcs.xml.dist                        PHPCS config
   phpunit.xml.dist                      PHPUnit config
   playwright.config.ts                  Playwright config
-  .wp-env.json                          wp-env mounts both this plugin AND wp-starter-theme
+  .wp-env.json                          wp-env mounts both this plugin AND pediment
   .gitignore                            build/, vendor/, node_modules
   README.md                             Setup, dev, config
   uninstall.php                         Drop tables + scheduled actions on plugin delete
@@ -41,7 +41,7 @@ wp-starter-ai/
       Serializer.php                    JSON tree → serialized block markup (uses serialize_blocks)
       Validator.php                     Validates a tree against the runtime schema
     Jobs/
-      JobStore.php                      CRUD on wp_starter_ai_jobs table
+      JobStore.php                      CRUD on wp_pediment_ai_jobs table
       ComposeJob.php                    Action Scheduler worker for compose + edit
     Rest/
       ComposeController.php             POST /v1/compose — enqueues job
@@ -49,7 +49,7 @@ wp-starter-ai/
       RefineController.php              POST /v1/refine — synchronous
       StatusController.php              GET /v1/jobs/{id}
     Mock/
-      MockProvider.php                  Returns fixture responses when STARTER_AI_MOCK=true
+      MockProvider.php                  Returns fixture responses when PEDIMENT_AI_MOCK=true
       fixtures/
         compose-landing.json
         compose-about.json
@@ -68,7 +68,7 @@ wp-starter-ai/
       Page.php                          Plugin settings screen
       OptionsStore.php                  Encrypted API key storage
     Schema/
-      tables.php                        wp_starter_ai_jobs + wp_starter_ai_usage CREATE TABLE
+      tables.php                        wp_pediment_ai_jobs + wp_pediment_ai_usage CREATE TABLE
   editor/
     index.tsx                           Entry: registers plugin slot
     DocumentPanel.tsx                   Compose + Edit buttons in document sidebar
@@ -82,10 +82,10 @@ wp-starter-ai/
       useApiClient.ts                   Wrapped wp.apiFetch helpers
 
   schema/
-    blocks.json                         Cache from `wp starter-ai dump-schema` (optional)
+    blocks.json                         Cache from `wp pediment-ai dump-schema` (optional)
 
   wp-cli/
-    DumpSchemaCommand.php               wp starter-ai dump-schema
+    DumpSchemaCommand.php               wp pediment-ai dump-schema
 
   tests/
     phpunit/
@@ -127,17 +127,17 @@ wp-starter-ai/
 ### Task 1: Initialize plugin with header and skeleton
 
 **Files:**
-- Create: `/Users/jonas/Entwicklung/wp-starter-ai/plugin.php`
-- Create: `/Users/jonas/Entwicklung/wp-starter-ai/uninstall.php`
-- Create: `/Users/jonas/Entwicklung/wp-starter-ai/.gitignore`
-- Create: `/Users/jonas/Entwicklung/wp-starter-ai/README.md` (skeleton)
-- Create: `/Users/jonas/Entwicklung/wp-starter-ai/src/Bootstrap.php` (stub)
+- Create: `/Users/jonas/Entwicklung/pediment-ai/plugin.php`
+- Create: `/Users/jonas/Entwicklung/pediment-ai/uninstall.php`
+- Create: `/Users/jonas/Entwicklung/pediment-ai/.gitignore`
+- Create: `/Users/jonas/Entwicklung/pediment-ai/README.md` (skeleton)
+- Create: `/Users/jonas/Entwicklung/pediment-ai/src/Bootstrap.php` (stub)
 
 - [ ] **Step 1: Create the directory and init git**
 
 ```bash
-mkdir -p /Users/jonas/Entwicklung/wp-starter-ai
-cd /Users/jonas/Entwicklung/wp-starter-ai
+mkdir -p /Users/jonas/Entwicklung/pediment-ai
+cd /Users/jonas/Entwicklung/pediment-ai
 git init
 ```
 
@@ -146,9 +146,9 @@ git init
 ```php
 <?php
 /**
- * Plugin Name:       Starter AI
- * Plugin URI:        https://github.com/bergert/wp-starter-ai
- * Description:       Gutenberg AI composer for wp-starter-theme: compose, edit, and refine pages with Claude.
+ * Plugin Name:       Pediment AI
+ * Plugin URI:        https://github.com/bergert/pediment-ai
+ * Description:       Gutenberg AI composer for pediment: compose, edit, and refine pages with Claude.
  * Version:           0.1.0
  * Requires at least: 6.4
  * Requires PHP:      8.1
@@ -156,27 +156,27 @@ git init
  * Author URI:        https://bergert.digital
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain:       starter-ai
+ * Text Domain:       pediment-ai
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'STARTER_AI_VERSION', '0.1.0' );
-define( 'STARTER_AI_PLUGIN_FILE', __FILE__ );
-define( 'STARTER_AI_PLUGIN_DIR', __DIR__ );
-define( 'STARTER_AI_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+define( 'PEDIMENT_AI_VERSION', '0.1.0' );
+define( 'PEDIMENT_AI_PLUGIN_FILE', __FILE__ );
+define( 'PEDIMENT_AI_PLUGIN_DIR', __DIR__ );
+define( 'PEDIMENT_AI_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
 if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
     require __DIR__ . '/vendor/autoload.php';
 }
 
 add_action( 'plugins_loaded', static function () {
-    if ( class_exists( '\\StarterAi\\Bootstrap' ) ) {
-        ( new \StarterAi\Bootstrap() )->register();
+    if ( class_exists( '\\PedimentAi\\Bootstrap' ) ) {
+        ( new \PedimentAi\Bootstrap() )->register();
     }
 } );
 ```
@@ -187,7 +187,7 @@ add_action( 'plugins_loaded', static function () {
 <?php
 declare(strict_types=1);
 
-namespace StarterAi;
+namespace PedimentAi;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
@@ -207,7 +207,7 @@ final class Bootstrap {
 /**
  * Runs when the plugin is deleted from wp-admin. Drops AI plugin tables.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
@@ -216,12 +216,12 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 
 global $wpdb;
 
-$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}starter_ai_jobs" );
-$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}starter_ai_usage" );
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}pediment_ai_jobs" );
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}pediment_ai_usage" );
 
-delete_option( 'starter_ai_settings' );
+delete_option( 'pediment_ai_settings' );
 
-wp_clear_scheduled_hook( 'starter_ai_job_run' );
+wp_clear_scheduled_hook( 'pediment_ai_job_run' );
 ```
 
 - [ ] **Step 5: Write .gitignore**
@@ -242,14 +242,14 @@ schema/blocks.json
 - [ ] **Step 6: Write README.md skeleton**
 
 ```markdown
-# Starter AI Plugin
+# Pediment AI Plugin
 
-Gutenberg AI composer for [wp-starter-theme](https://github.com/bergert/wp-starter-theme). Compose, edit, and refine pages with Claude.
+Gutenberg AI composer for [pediment](https://github.com/bergert/pediment). Compose, edit, and refine pages with Claude.
 
 ## Requirements
 
 - WordPress 6.4+, PHP 8.1+
-- `wp-starter-theme` (Plan A) active
+- `pediment` (Plan A) active
 - Anthropic API key (set via `.env` `ANTHROPIC_API_KEY` or plugin settings)
 
 ## Local dev
@@ -261,21 +261,21 @@ See `docs/development.md` (added in Task 31).
 
 ```bash
 git add .
-git commit -m "chore: initialize wp-starter-ai plugin scaffold"
+git commit -m "chore: initialize pediment-ai plugin scaffold"
 ```
 
 ### Task 2: Composer setup with autoload + Action Scheduler
 
 **Files:**
-- Create: `/Users/jonas/Entwicklung/wp-starter-ai/composer.json`
-- Create: `/Users/jonas/Entwicklung/wp-starter-ai/phpcs.xml.dist`
+- Create: `/Users/jonas/Entwicklung/pediment-ai/composer.json`
+- Create: `/Users/jonas/Entwicklung/pediment-ai/phpcs.xml.dist`
 
 - [ ] **Step 1: Write composer.json**
 
 ```json
 {
-  "name": "bergert/wp-starter-ai",
-  "description": "WordPress AI page composer plugin for wp-starter-theme",
+  "name": "bergert/pediment-ai",
+  "description": "WordPress AI page composer plugin for pediment",
   "type": "wordpress-plugin",
   "license": "GPL-2.0-or-later",
   "require": {
@@ -291,12 +291,12 @@ git commit -m "chore: initialize wp-starter-ai plugin scaffold"
   },
   "autoload": {
     "psr-4": {
-      "StarterAi\\": "src/"
+      "PedimentAi\\": "src/"
     }
   },
   "autoload-dev": {
     "psr-4": {
-      "StarterAi\\Tests\\": "tests/phpunit/"
+      "PedimentAi\\Tests\\": "tests/phpunit/"
     }
   },
   "config": {
@@ -317,8 +317,8 @@ git commit -m "chore: initialize wp-starter-ai plugin scaffold"
 
 ```xml
 <?xml version="1.0"?>
-<ruleset name="Starter AI">
-  <description>Coding standards for wp-starter-ai.</description>
+<ruleset name="Pediment AI">
+  <description>Coding standards for pediment-ai.</description>
 
   <file>plugin.php</file>
   <file>src/</file>
@@ -354,7 +354,7 @@ Expected: `vendor/` populated; Action Scheduler available; WPCS standards instal
 - [ ] **Step 4: Verify autoload by adding a tiny check**
 
 ```bash
-php -r 'require "vendor/autoload.php"; echo class_exists("StarterAi\\Bootstrap") ? "OK\n" : "FAIL\n";'
+php -r 'require "vendor/autoload.php"; echo class_exists("PedimentAi\\Bootstrap") ? "OK\n" : "FAIL\n";'
 ```
 
 Expected: `OK`.
@@ -385,7 +385,7 @@ git commit -m "chore: composer + PSR-4 autoload + Action Scheduler dep"
 ### Task 3: wp-env config that mounts both this plugin AND the starter theme
 
 **Files:**
-- Create: `/Users/jonas/Entwicklung/wp-starter-ai/.wp-env.json`
+- Create: `/Users/jonas/Entwicklung/pediment-ai/.wp-env.json`
 
 > **Why mount the theme?** This plugin's tests and editor work only make sense when the starter theme's blocks are present. wp-env can mount sibling repos via a relative path.
 
@@ -396,12 +396,12 @@ git commit -m "chore: composer + PSR-4 autoload + Action Scheduler dep"
   "core": "WordPress/WordPress#6.5",
   "phpVersion": "8.1",
   "plugins": ["."],
-  "themes": ["../wp-starter-theme"],
+  "themes": ["../pediment"],
   "config": {
     "WP_DEBUG": true,
     "WP_DEBUG_LOG": true,
     "SCRIPT_DEBUG": true,
-    "STARTER_AI_MOCK": true
+    "PEDIMENT_AI_MOCK": true
   },
   "mappings": {
     "wp-content/mu-plugins/activate-starter-theme.php": "./tests/fixtures/mu-activate-theme.php"
@@ -416,12 +416,12 @@ Create `tests/fixtures/mu-activate-theme.php`:
 ```php
 <?php
 /**
- * Forces wp-starter-theme to be the active theme during wp-env.
+ * Forces pediment to be the active theme during wp-env.
  */
 
 add_action( 'init', function () {
-    if ( wp_get_theme()->get_stylesheet() !== 'wp-starter-theme' ) {
-        switch_theme( 'wp-starter-theme' );
+    if ( wp_get_theme()->get_stylesheet() !== 'pediment' ) {
+        switch_theme( 'pediment' );
     }
 }, 1 );
 ```
@@ -429,7 +429,7 @@ add_action( 'init', function () {
 - [ ] **Step 3: Build the starter theme so blocks are registered**
 
 ```bash
-( cd ../wp-starter-theme && npm run build )
+( cd ../pediment && npm run build )
 ```
 
 - [ ] **Step 4: Start wp-env and verify both are loaded**
@@ -456,14 +456,14 @@ git commit -m "chore: wp-env mounts plugin + sibling starter theme"
 ### Task 4: NPM setup with @wordpress/scripts + TypeScript
 
 **Files:**
-- Create: `/Users/jonas/Entwicklung/wp-starter-ai/package.json`
-- Create: `/Users/jonas/Entwicklung/wp-starter-ai/tsconfig.json`
+- Create: `/Users/jonas/Entwicklung/pediment-ai/package.json`
+- Create: `/Users/jonas/Entwicklung/pediment-ai/tsconfig.json`
 
 - [ ] **Step 1: Write package.json**
 
 ```json
 {
-  "name": "wp-starter-ai",
+  "name": "pediment-ai",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -531,9 +531,9 @@ git commit -m "chore: @wordpress/scripts + TypeScript editor build"
 ### Task 5: PHPUnit setup
 
 **Files:**
-- Create: `/Users/jonas/Entwicklung/wp-starter-ai/phpunit.xml.dist`
-- Create: `/Users/jonas/Entwicklung/wp-starter-ai/tests/phpunit/bootstrap.php`
-- Create: `/Users/jonas/Entwicklung/wp-starter-ai/tests/phpunit/SmokeTest.php`
+- Create: `/Users/jonas/Entwicklung/pediment-ai/phpunit.xml.dist`
+- Create: `/Users/jonas/Entwicklung/pediment-ai/tests/phpunit/bootstrap.php`
+- Create: `/Users/jonas/Entwicklung/pediment-ai/tests/phpunit/SmokeTest.php`
 
 - [ ] **Step 1: Write phpunit.xml.dist**
 
@@ -578,15 +578,15 @@ require $_tests_dir . '/includes/bootstrap.php';
 
 ```php
 <?php
-namespace StarterAi\Tests;
+namespace PedimentAi\Tests;
 
 class SmokeTest extends \WP_UnitTestCase {
     public function test_plugin_constants_defined(): void {
-        $this->assertTrue( defined( 'STARTER_AI_VERSION' ) );
+        $this->assertTrue( defined( 'PEDIMENT_AI_VERSION' ) );
     }
 
     public function test_bootstrap_class_exists(): void {
-        $this->assertTrue( class_exists( '\\StarterAi\\Bootstrap' ) );
+        $this->assertTrue( class_exists( '\\PedimentAi\\Bootstrap' ) );
     }
 }
 ```
@@ -595,7 +595,7 @@ class SmokeTest extends \WP_UnitTestCase {
 
 ```bash
 npx wp-env start
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit
 ```
 
 Expected: 2 tests pass.
@@ -610,8 +610,8 @@ git commit -m "test: phpunit setup with wp-env test container"
 ### Task 6: Playwright setup
 
 **Files:**
-- Create: `/Users/jonas/Entwicklung/wp-starter-ai/playwright.config.ts`
-- Create: `/Users/jonas/Entwicklung/wp-starter-ai/tests/e2e/smoke.spec.ts`
+- Create: `/Users/jonas/Entwicklung/pediment-ai/playwright.config.ts`
+- Create: `/Users/jonas/Entwicklung/pediment-ai/tests/e2e/smoke.spec.ts`
 
 - [ ] **Step 1: Install Playwright browsers**
 
@@ -670,7 +670,7 @@ git commit -m "test: playwright e2e smoke setup"
 ### Task 7: GitHub Actions CI
 
 **Files:**
-- Create: `/Users/jonas/Entwicklung/wp-starter-ai/.github/workflows/ci.yml`
+- Create: `/Users/jonas/Entwicklung/pediment-ai/.github/workflows/ci.yml`
 
 - [ ] **Step 1: Write the workflow**
 
@@ -699,64 +699,64 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          path: wp-starter-ai
+          path: pediment-ai
       - uses: actions/checkout@v4
         with:
-          repository: bergert/wp-starter-theme
+          repository: bergert/pediment
           ref: main
           token: ${{ secrets.STARTER_THEME_PAT }}
-          path: wp-starter-theme
+          path: pediment
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: npm
-          cache-dependency-path: wp-starter-ai/package-lock.json
+          cache-dependency-path: pediment-ai/package-lock.json
       - name: Build starter theme blocks
         run: |
-          cd wp-starter-theme
+          cd pediment
           npm ci
           npm run build
       - name: Install plugin deps
         run: |
-          cd wp-starter-ai
+          cd pediment-ai
           npm ci
       - name: Start wp-env (mounts both)
-        run: cd wp-starter-ai && npm run env:start
+        run: cd pediment-ai && npm run env:start
       - name: Run PHPUnit
-        run: cd wp-starter-ai && npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit
+        run: cd pediment-ai && npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit
       - if: always()
-        run: cd wp-starter-ai && npm run env:stop
+        run: cd pediment-ai && npm run env:stop
 
   e2e:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          path: wp-starter-ai
+          path: pediment-ai
       - uses: actions/checkout@v4
         with:
-          repository: bergert/wp-starter-theme
+          repository: bergert/pediment
           ref: main
           token: ${{ secrets.STARTER_THEME_PAT }}
-          path: wp-starter-theme
+          path: pediment
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: npm
-          cache-dependency-path: wp-starter-ai/package-lock.json
-      - run: cd wp-starter-theme && npm ci && npm run build
-      - run: cd wp-starter-ai && npm ci
-      - run: cd wp-starter-ai && npx playwright install --with-deps chromium
-      - run: cd wp-starter-ai && npm run env:start
-      - run: cd wp-starter-ai && npm run build
-      - run: cd wp-starter-ai && npm run e2e
+          cache-dependency-path: pediment-ai/package-lock.json
+      - run: cd pediment && npm ci && npm run build
+      - run: cd pediment-ai && npm ci
+      - run: cd pediment-ai && npx playwright install --with-deps chromium
+      - run: cd pediment-ai && npm run env:start
+      - run: cd pediment-ai && npm run build
+      - run: cd pediment-ai && npm run e2e
       - if: always()
-        run: cd wp-starter-ai && npm run env:stop
+        run: cd pediment-ai && npm run env:stop
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
-          path: wp-starter-ai/playwright-report/
+          path: pediment-ai/playwright-report/
 ```
 
 > Note: `secrets.STARTER_THEME_PAT` is a personal access token with read access to the private theme repo. Set it under repo Settings → Secrets and variables → Actions before the first CI run.
@@ -784,9 +784,9 @@ git commit -m "ci: workflow runs phpcs + phpunit + e2e against sibling theme"
 
 ```php
 <?php
-namespace StarterAi\Tests\Anthropic;
+namespace PedimentAi\Tests\Anthropic;
 
-use StarterAi\Anthropic\Client;
+use PedimentAi\Anthropic\Client;
 
 class ClientTest extends \WP_UnitTestCase {
     public function setUp(): void {
@@ -863,7 +863,7 @@ class ClientTest extends \WP_UnitTestCase {
         $result = $client->messages( [ 'model' => 'bad', 'max_tokens' => 1, 'messages' => [] ] );
 
         $this->assertInstanceOf( \WP_Error::class, $result );
-        $this->assertSame( 'starter_ai_anthropic_400', $result->get_error_code() );
+        $this->assertSame( 'pediment_ai_anthropic_400', $result->get_error_code() );
         $data = $result->get_error_data();
         $this->assertSame( 'invalid_request_error', $data['error_type'] );
     }
@@ -897,7 +897,7 @@ class ClientTest extends \WP_UnitTestCase {
 - [ ] **Step 2: Run and verify fail**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter ClientTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter ClientTest
 ```
 
 Expected: FAIL.
@@ -908,7 +908,7 @@ Expected: FAIL.
 <?php
 declare(strict_types=1);
 
-namespace StarterAi\Anthropic;
+namespace PedimentAi\Anthropic;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
@@ -975,7 +975,7 @@ final class Client {
         $message    = is_array( $body ) && isset( $body['error']['message'] ) ? (string) $body['error']['message'] : 'Anthropic API error';
 
         return new \WP_Error(
-            'starter_ai_anthropic_' . $status,
+            'pediment_ai_anthropic_' . $status,
             $message,
             [ 'error_type' => $error_type, 'status' => $status ]
         );
@@ -986,7 +986,7 @@ final class Client {
 - [ ] **Step 4: Run the tests**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter ClientTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter ClientTest
 ```
 
 Expected: 4 tests pass.
@@ -1014,34 +1014,34 @@ git commit -m "feat(anthropic): Client wraps Messages API with retry-on-429/5xx"
 
 ```php
 <?php
-namespace StarterAi\Tests\BlockTree;
+namespace PedimentAi\Tests\BlockTree;
 
-use StarterAi\BlockTree\Parser;
+use PedimentAi\BlockTree\Parser;
 
 class ParserTest extends \WP_UnitTestCase {
     public function test_parses_single_block(): void {
-        $tree = ( new Parser() )->parse( '<!-- wp:starter/hero {"headline":"Hi"} /-->' );
+        $tree = ( new Parser() )->parse( '<!-- wp:pediment/hero {"headline":"Hi"} /-->' );
         $this->assertCount( 1, $tree );
-        $this->assertSame( 'starter/hero', $tree[0]['name'] );
+        $this->assertSame( 'pediment/hero', $tree[0]['name'] );
         $this->assertSame( 'Hi', $tree[0]['attributes']['headline'] );
         $this->assertSame( [], $tree[0]['innerBlocks'] );
     }
 
     public function test_parses_nested_blocks(): void {
         $tree = ( new Parser() )->parse(
-            '<!-- wp:starter/faq -->' .
-            '<!-- wp:starter/faq-item {"question":"Q","answer":"A"} /-->' .
-            '<!-- /wp:starter/faq -->'
+            '<!-- wp:pediment/faq -->' .
+            '<!-- wp:pediment/faq-item {"question":"Q","answer":"A"} /-->' .
+            '<!-- /wp:pediment/faq -->'
         );
-        $this->assertSame( 'starter/faq', $tree[0]['name'] );
+        $this->assertSame( 'pediment/faq', $tree[0]['name'] );
         $this->assertCount( 1, $tree[0]['innerBlocks'] );
-        $this->assertSame( 'starter/faq-item', $tree[0]['innerBlocks'][0]['name'] );
+        $this->assertSame( 'pediment/faq-item', $tree[0]['innerBlocks'][0]['name'] );
         $this->assertSame( 'Q', $tree[0]['innerBlocks'][0]['attributes']['question'] );
     }
 
     public function test_filters_out_freeform_whitespace_blocks(): void {
         $tree = ( new Parser() )->parse(
-            "\n\n<!-- wp:starter/hero /-->\n\n<!-- wp:starter/cta /-->\n"
+            "\n\n<!-- wp:pediment/hero /-->\n\n<!-- wp:pediment/cta /-->\n"
         );
         $this->assertCount( 2, $tree );
     }
@@ -1055,7 +1055,7 @@ class ParserTest extends \WP_UnitTestCase {
 - [ ] **Step 2: Run and verify fail**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter ParserTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter ParserTest
 ```
 
 Expected: FAIL.
@@ -1066,7 +1066,7 @@ Expected: FAIL.
 <?php
 declare(strict_types=1);
 
-namespace StarterAi\BlockTree;
+namespace PedimentAi\BlockTree;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
@@ -1111,7 +1111,7 @@ final class Parser {
 - [ ] **Step 4: Run the tests**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter ParserTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter ParserTest
 ```
 
 Expected: 4 tests pass.
@@ -1133,22 +1133,22 @@ git commit -m "feat(blocktree): Parser — post_content to JSON tree"
 
 ```php
 <?php
-namespace StarterAi\Tests\BlockTree;
+namespace PedimentAi\Tests\BlockTree;
 
-use StarterAi\BlockTree\Parser;
-use StarterAi\BlockTree\Serializer;
+use PedimentAi\BlockTree\Parser;
+use PedimentAi\BlockTree\Serializer;
 
 class SerializerTest extends \WP_UnitTestCase {
     public function test_serializes_single_block(): void {
         $markup = ( new Serializer() )->serialize( [
             [
-                'name'        => 'starter/hero',
+                'name'        => 'pediment/hero',
                 'attributes'  => [ 'headline' => 'Hi' ],
                 'innerBlocks' => [],
             ],
         ] );
 
-        $this->assertStringContainsString( '<!-- wp:starter/hero', $markup );
+        $this->assertStringContainsString( '<!-- wp:pediment/hero', $markup );
         $this->assertStringContainsString( '"headline":"Hi"', $markup );
         $this->assertStringContainsString( '/-->', $markup );
     }
@@ -1156,21 +1156,21 @@ class SerializerTest extends \WP_UnitTestCase {
     public function test_serializes_nested_blocks(): void {
         $markup = ( new Serializer() )->serialize( [
             [
-                'name'        => 'starter/faq',
+                'name'        => 'pediment/faq',
                 'attributes'  => [],
                 'innerBlocks' => [
-                    [ 'name' => 'starter/faq-item', 'attributes' => [ 'question' => 'Q', 'answer' => 'A' ], 'innerBlocks' => [] ],
+                    [ 'name' => 'pediment/faq-item', 'attributes' => [ 'question' => 'Q', 'answer' => 'A' ], 'innerBlocks' => [] ],
                 ],
             ],
         ] );
 
-        $this->assertStringContainsString( '<!-- wp:starter/faq -->',       $markup );
-        $this->assertStringContainsString( '<!-- wp:starter/faq-item',      $markup );
-        $this->assertStringContainsString( '<!-- /wp:starter/faq -->',      $markup );
+        $this->assertStringContainsString( '<!-- wp:pediment/faq -->',       $markup );
+        $this->assertStringContainsString( '<!-- wp:pediment/faq-item',      $markup );
+        $this->assertStringContainsString( '<!-- /wp:pediment/faq -->',      $markup );
     }
 
     public function test_round_trip_via_parser(): void {
-        $original = '<!-- wp:starter/hero {"headline":"Hello"} /-->';
+        $original = '<!-- wp:pediment/hero {"headline":"Hello"} /-->';
         $tree     = ( new Parser() )->parse( $original );
         $back     = ( new Serializer() )->serialize( $tree );
         $reparsed = ( new Parser() )->parse( $back );
@@ -1187,7 +1187,7 @@ class SerializerTest extends \WP_UnitTestCase {
 - [ ] **Step 2: Run and verify fail**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter SerializerTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter SerializerTest
 ```
 
 Expected: FAIL.
@@ -1198,7 +1198,7 @@ Expected: FAIL.
 <?php
 declare(strict_types=1);
 
-namespace StarterAi\BlockTree;
+namespace PedimentAi\BlockTree;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
@@ -1239,7 +1239,7 @@ final class Serializer {
 - [ ] **Step 4: Run the tests**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter SerializerTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter SerializerTest
 ```
 
 Expected: 4 tests pass.
@@ -1263,25 +1263,25 @@ git commit -m "feat(blocktree): Serializer — JSON tree to Gutenberg markup wit
 
 ```php
 <?php
-namespace StarterAi\Tests\BlockTree;
+namespace PedimentAi\Tests\BlockTree;
 
-use StarterAi\BlockTree\Validator;
+use PedimentAi\BlockTree\Validator;
 
 class ValidatorTest extends \WP_UnitTestCase {
     private function schema(): array {
         return [
-            'starter/hero' => [
+            'pediment/hero' => [
                 'description' => 'Hero',
                 'attributes'  => [ 'headline' => [ 'type' => 'string' ] ],
                 'allowsInnerBlocks' => false,
             ],
-            'starter/faq' => [
+            'pediment/faq' => [
                 'description'        => 'FAQ',
                 'attributes'         => [],
                 'allowsInnerBlocks'  => true,
-                'allowedChildBlocks' => [ 'starter/faq-item' ],
+                'allowedChildBlocks' => [ 'pediment/faq-item' ],
             ],
-            'starter/faq-item' => [
+            'pediment/faq-item' => [
                 'description' => 'FAQ item',
                 'attributes'  => [],
                 'allowsInnerBlocks' => false,
@@ -1291,26 +1291,26 @@ class ValidatorTest extends \WP_UnitTestCase {
 
     public function test_valid_tree_passes(): void {
         $errors = ( new Validator( $this->schema() ) )->validate( [
-            [ 'name' => 'starter/hero', 'attributes' => [ 'headline' => 'Hi' ], 'innerBlocks' => [] ],
+            [ 'name' => 'pediment/hero', 'attributes' => [ 'headline' => 'Hi' ], 'innerBlocks' => [] ],
         ] );
         $this->assertSame( [], $errors );
     }
 
     public function test_unknown_block_fails(): void {
         $errors = ( new Validator( $this->schema() ) )->validate( [
-            [ 'name' => 'starter/nope', 'attributes' => [], 'innerBlocks' => [] ],
+            [ 'name' => 'pediment/nope', 'attributes' => [], 'innerBlocks' => [] ],
         ] );
         $this->assertNotEmpty( $errors );
-        $this->assertStringContainsString( 'starter/nope', $errors[0] );
+        $this->assertStringContainsString( 'pediment/nope', $errors[0] );
     }
 
     public function test_inner_blocks_on_non_container_fail(): void {
         $errors = ( new Validator( $this->schema() ) )->validate( [
             [
-                'name'        => 'starter/hero',
+                'name'        => 'pediment/hero',
                 'attributes'  => [],
                 'innerBlocks' => [
-                    [ 'name' => 'starter/faq-item', 'attributes' => [], 'innerBlocks' => [] ],
+                    [ 'name' => 'pediment/faq-item', 'attributes' => [], 'innerBlocks' => [] ],
                 ],
             ],
         ] );
@@ -1320,10 +1320,10 @@ class ValidatorTest extends \WP_UnitTestCase {
     public function test_disallowed_child_fails(): void {
         $errors = ( new Validator( $this->schema() ) )->validate( [
             [
-                'name'        => 'starter/faq',
+                'name'        => 'pediment/faq',
                 'attributes'  => [],
                 'innerBlocks' => [
-                    [ 'name' => 'starter/hero', 'attributes' => [], 'innerBlocks' => [] ],
+                    [ 'name' => 'pediment/hero', 'attributes' => [], 'innerBlocks' => [] ],
                 ],
             ],
         ] );
@@ -1332,7 +1332,7 @@ class ValidatorTest extends \WP_UnitTestCase {
 
     public function test_attributes_not_object_fails(): void {
         $errors = ( new Validator( $this->schema() ) )->validate( [
-            [ 'name' => 'starter/hero', 'attributes' => 'oops', 'innerBlocks' => [] ],
+            [ 'name' => 'pediment/hero', 'attributes' => 'oops', 'innerBlocks' => [] ],
         ] );
         $this->assertNotEmpty( $errors );
     }
@@ -1342,7 +1342,7 @@ class ValidatorTest extends \WP_UnitTestCase {
 - [ ] **Step 2: Run and verify fail**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter ValidatorTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter ValidatorTest
 ```
 
 Expected: FAIL.
@@ -1353,7 +1353,7 @@ Expected: FAIL.
 <?php
 declare(strict_types=1);
 
-namespace StarterAi\BlockTree;
+namespace PedimentAi\BlockTree;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
@@ -1419,7 +1419,7 @@ final class Validator {
 - [ ] **Step 4: Run the tests**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter ValidatorTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter ValidatorTest
 ```
 
 Expected: 5 tests pass.
@@ -1441,33 +1441,33 @@ git commit -m "feat(blocktree): Validator — checks name presence and parent/ch
 
 ```php
 <?php
-namespace StarterAi\Tests\Anthropic;
+namespace PedimentAi\Tests\Anthropic;
 
-use StarterAi\Anthropic\SchemaBuilder;
+use PedimentAi\Anthropic\SchemaBuilder;
 
 class SchemaBuilderTest extends \WP_UnitTestCase {
     public function setUp(): void {
         parent::setUp();
         // Wipe any cached schema.
-        delete_transient( 'starter_ai_schema' );
+        delete_transient( 'pediment_ai_schema' );
 
         // Register a fake starter block for the test.
-        register_block_type( 'starter/test-block', [
+        register_block_type( 'pediment/test-block', [
             'attributes'  => [ 'foo' => [ 'type' => 'string', 'default' => '' ] ],
             'description' => 'A test block.',
         ] );
     }
 
     public function tearDown(): void {
-        unregister_block_type( 'starter/test-block' );
-        delete_transient( 'starter_ai_schema' );
+        unregister_block_type( 'pediment/test-block' );
+        delete_transient( 'pediment_ai_schema' );
         parent::tearDown();
     }
 
     public function test_includes_starter_blocks(): void {
         $schema = ( new SchemaBuilder() )->build();
-        $this->assertArrayHasKey( 'starter/test-block', $schema['blocks'] );
-        $this->assertSame( 'A test block.', $schema['blocks']['starter/test-block']['description'] );
+        $this->assertArrayHasKey( 'pediment/test-block', $schema['blocks'] );
+        $this->assertSame( 'A test block.', $schema['blocks']['pediment/test-block']['description'] );
     }
 
     public function test_includes_curated_core_blocks(): void {
@@ -1487,16 +1487,16 @@ class SchemaBuilderTest extends \WP_UnitTestCase {
     public function test_caches_result_in_transient(): void {
         $builder = new SchemaBuilder();
         $first   = $builder->build();
-        $cached  = get_transient( 'starter_ai_schema' );
+        $cached  = get_transient( 'pediment_ai_schema' );
         $this->assertNotFalse( $cached );
         $this->assertSame( $first, $cached );
     }
 
     public function test_invalidate_clears_transient(): void {
         ( new SchemaBuilder() )->build();
-        $this->assertNotFalse( get_transient( 'starter_ai_schema' ) );
+        $this->assertNotFalse( get_transient( 'pediment_ai_schema' ) );
         SchemaBuilder::invalidate();
-        $this->assertFalse( get_transient( 'starter_ai_schema' ) );
+        $this->assertFalse( get_transient( 'pediment_ai_schema' ) );
     }
 }
 ```
@@ -1504,7 +1504,7 @@ class SchemaBuilderTest extends \WP_UnitTestCase {
 - [ ] **Step 2: Run and verify fail**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter SchemaBuilderTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter SchemaBuilderTest
 ```
 
 Expected: FAIL.
@@ -1515,14 +1515,14 @@ Expected: FAIL.
 <?php
 declare(strict_types=1);
 
-namespace StarterAi\Anthropic;
+namespace PedimentAi\Anthropic;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
 final class SchemaBuilder {
-    public const TRANSIENT_KEY = 'starter_ai_schema';
+    public const TRANSIENT_KEY = 'pediment_ai_schema';
     private const TRANSIENT_TTL = HOUR_IN_SECONDS;
 
     private const CORE_ALLOWLIST = [
@@ -1578,7 +1578,7 @@ final class SchemaBuilder {
 
         $registry = \WP_Block_Type_Registry::get_instance();
         foreach ( $registry->get_all_registered() as $name => $type ) {
-            if ( ! preg_match( '#^(starter|client)/#', (string) $name ) ) {
+            if ( ! preg_match( '#^(pediment|client)/#', (string) $name ) ) {
                 continue;
             }
 
@@ -1632,7 +1632,7 @@ final class SchemaBuilder {
 
     private function guessAllowsInnerBlocks( string $name ): bool {
         // Heuristic: containers commonly named *-list, *-group, *-grid, or known names.
-        return in_array( $name, [ 'starter/faq', 'starter/prose' ], true );
+        return in_array( $name, [ 'pediment/faq', 'pediment/prose' ], true );
     }
 }
 ```
@@ -1643,14 +1643,14 @@ Append to `src/Bootstrap.php`'s `register()` method:
 
 ```php
 add_action( 'register_block_type_args', static function () {
-    \StarterAi\Anthropic\SchemaBuilder::invalidate();
+    \PedimentAi\Anthropic\SchemaBuilder::invalidate();
 } );
 ```
 
 - [ ] **Step 5: Run the tests**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter SchemaBuilderTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter SchemaBuilderTest
 ```
 
 Expected: 5 tests pass.
@@ -1674,9 +1674,9 @@ git commit -m "feat(anthropic): SchemaBuilder — runtime block schema with tran
 
 ```php
 <?php
-namespace StarterAi\Tests\Anthropic;
+namespace PedimentAi\Tests\Anthropic;
 
-use StarterAi\Anthropic\ToolUseParser;
+use PedimentAi\Anthropic\ToolUseParser;
 
 class ToolUseParserTest extends \WP_UnitTestCase {
     public function test_extracts_emit_page_tool_input(): void {
@@ -1687,13 +1687,13 @@ class ToolUseParserTest extends \WP_UnitTestCase {
                     'type'  => 'tool_use',
                     'id'    => 'tu_1',
                     'name'  => 'emit_page',
-                    'input' => [ 'blocks' => [ [ 'name' => 'starter/hero', 'attributes' => [ 'headline' => 'Hi' ], 'innerBlocks' => [] ] ] ],
+                    'input' => [ 'blocks' => [ [ 'name' => 'pediment/hero', 'attributes' => [ 'headline' => 'Hi' ], 'innerBlocks' => [] ] ] ],
                 ],
             ],
         ] );
 
         $this->assertSame( 'emit_page', $result['tool'] );
-        $this->assertSame( 'starter/hero', $result['input']['blocks'][0]['name'] );
+        $this->assertSame( 'pediment/hero', $result['input']['blocks'][0]['name'] );
         $this->assertSame( [], $result['urls_fetched'] );
     }
 
@@ -1735,7 +1735,7 @@ class ToolUseParserTest extends \WP_UnitTestCase {
 - [ ] **Step 2: Run and verify fail**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter ToolUseParserTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter ToolUseParserTest
 ```
 
 Expected: FAIL.
@@ -1746,7 +1746,7 @@ Expected: FAIL.
 <?php
 declare(strict_types=1);
 
-namespace StarterAi\Anthropic;
+namespace PedimentAi\Anthropic;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
@@ -1795,7 +1795,7 @@ final class ToolUseParser {
 - [ ] **Step 4: Run the tests**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter ToolUseParserTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter ToolUseParserTest
 ```
 
 Expected: 4 tests pass.
@@ -1822,23 +1822,23 @@ git commit -m "feat(anthropic): ToolUseParser — extracts tool_use + web_fetch 
 
 ```php
 <?php
-namespace StarterAi\Tests\Schema;
+namespace PedimentAi\Tests\Schema;
 
 class TablesTest extends \WP_UnitTestCase {
     public function test_tables_exist_after_install(): void {
-        \starter_ai_install_tables();
+        \pediment_ai_install_tables();
         global $wpdb;
-        $jobs  = $wpdb->prefix . 'starter_ai_jobs';
-        $usage = $wpdb->prefix . 'starter_ai_usage';
+        $jobs  = $wpdb->prefix . 'pediment_ai_jobs';
+        $usage = $wpdb->prefix . 'pediment_ai_usage';
         $this->assertSame( $jobs,  $wpdb->get_var( "SHOW TABLES LIKE '{$jobs}'" ) );
         $this->assertSame( $usage, $wpdb->get_var( "SHOW TABLES LIKE '{$usage}'" ) );
     }
 
     public function test_install_is_idempotent(): void {
-        \starter_ai_install_tables();
-        \starter_ai_install_tables();
+        \pediment_ai_install_tables();
+        \pediment_ai_install_tables();
         global $wpdb;
-        $this->assertSame( "0", $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}starter_ai_jobs" ) );
+        $this->assertSame( "0", $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}pediment_ai_jobs" ) );
     }
 }
 ```
@@ -1846,7 +1846,7 @@ class TablesTest extends \WP_UnitTestCase {
 - [ ] **Step 2: Run and verify fail**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter TablesTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter TablesTest
 ```
 
 Expected: FAIL.
@@ -1861,13 +1861,13 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-function starter_ai_install_tables(): void {
+function pediment_ai_install_tables(): void {
     global $wpdb;
     require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
     $charset = $wpdb->get_charset_collate();
-    $jobs    = $wpdb->prefix . 'starter_ai_jobs';
-    $usage   = $wpdb->prefix . 'starter_ai_usage';
+    $jobs    = $wpdb->prefix . 'pediment_ai_jobs';
+    $usage   = $wpdb->prefix . 'pediment_ai_usage';
 
     $sql_jobs = "CREATE TABLE {$jobs} (
         id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -1905,7 +1905,7 @@ function starter_ai_install_tables(): void {
     dbDelta( $sql_jobs );
     dbDelta( $sql_usage );
 
-    update_option( 'starter_ai_db_version', STARTER_AI_VERSION );
+    update_option( 'pediment_ai_db_version', PEDIMENT_AI_VERSION );
 }
 ```
 
@@ -1915,10 +1915,10 @@ Add to `plugin.php` before the final `add_action( 'plugins_loaded', ... )`:
 
 ```php
 require_once __DIR__ . '/src/Schema/tables.php';
-register_activation_hook( STARTER_AI_PLUGIN_FILE, 'starter_ai_install_tables' );
+register_activation_hook( PEDIMENT_AI_PLUGIN_FILE, 'pediment_ai_install_tables' );
 add_action( 'plugins_loaded', static function () {
-    if ( get_option( 'starter_ai_db_version' ) !== STARTER_AI_VERSION ) {
-        starter_ai_install_tables();
+    if ( get_option( 'pediment_ai_db_version' ) !== PEDIMENT_AI_VERSION ) {
+        pediment_ai_install_tables();
     }
 }, 5 );
 ```
@@ -1926,7 +1926,7 @@ add_action( 'plugins_loaded', static function () {
 - [ ] **Step 5: Run the tests**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter TablesTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter TablesTest
 ```
 
 Expected: 2 tests pass.
@@ -1935,7 +1935,7 @@ Expected: 2 tests pass.
 
 ```bash
 git add src/Schema/tables.php plugin.php tests/phpunit/Schema/TablesTest.php
-git commit -m "feat(schema): wp_starter_ai_jobs + wp_starter_ai_usage tables"
+git commit -m "feat(schema): wp_pediment_ai_jobs + wp_pediment_ai_usage tables"
 ```
 
 ### Task 15: Jobs\JobStore
@@ -1948,16 +1948,16 @@ git commit -m "feat(schema): wp_starter_ai_jobs + wp_starter_ai_usage tables"
 
 ```php
 <?php
-namespace StarterAi\Tests\Jobs;
+namespace PedimentAi\Tests\Jobs;
 
-use StarterAi\Jobs\JobStore;
+use PedimentAi\Jobs\JobStore;
 
 class JobStoreTest extends \WP_UnitTestCase {
     public function setUp(): void {
         parent::setUp();
-        \starter_ai_install_tables();
+        \pediment_ai_install_tables();
         global $wpdb;
-        $wpdb->query( "TRUNCATE {$wpdb->prefix}starter_ai_jobs" );
+        $wpdb->query( "TRUNCATE {$wpdb->prefix}pediment_ai_jobs" );
     }
 
     public function test_create_returns_id_and_stores_payload(): void {
@@ -2016,7 +2016,7 @@ class JobStoreTest extends \WP_UnitTestCase {
 - [ ] **Step 2: Run and verify fail**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter JobStoreTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter JobStoreTest
 ```
 
 Expected: FAIL.
@@ -2027,7 +2027,7 @@ Expected: FAIL.
 <?php
 declare(strict_types=1);
 
-namespace StarterAi\Jobs;
+namespace PedimentAi\Jobs;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
@@ -2038,7 +2038,7 @@ final class JobStore {
 
     public function __construct() {
         global $wpdb;
-        $this->table = $wpdb->prefix . 'starter_ai_jobs';
+        $this->table = $wpdb->prefix . 'pediment_ai_jobs';
     }
 
     public function create( int $user_id, string $kind, array $payload ): int {
@@ -2110,7 +2110,7 @@ final class JobStore {
 - [ ] **Step 4: Run the tests**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter JobStoreTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter JobStoreTest
 ```
 
 Expected: 6 tests pass.
@@ -2119,7 +2119,7 @@ Expected: 6 tests pass.
 
 ```bash
 git add src/Jobs/JobStore.php tests/phpunit/Jobs/JobStoreTest.php
-git commit -m "feat(jobs): JobStore — CRUD on wp_starter_ai_jobs"
+git commit -m "feat(jobs): JobStore — CRUD on wp_pediment_ai_jobs"
 ```
 
 ### Task 16: Jobs\ComposeJob — Action Scheduler worker
@@ -2139,7 +2139,7 @@ git commit -m "feat(jobs): JobStore — CRUD on wp_starter_ai_jobs"
 <?php
 declare(strict_types=1);
 
-namespace StarterAi\Anthropic;
+namespace PedimentAi\Anthropic;
 
 interface ProviderInterface {
     /**
@@ -2156,11 +2156,11 @@ Update `src/Anthropic/Client.php` class header to `final class Client implements
 
 ```php
 <?php
-namespace StarterAi\Tests\Jobs;
+namespace PedimentAi\Tests\Jobs;
 
-use StarterAi\Anthropic\ProviderInterface;
-use StarterAi\Jobs\ComposeJob;
-use StarterAi\Jobs\JobStore;
+use PedimentAi\Anthropic\ProviderInterface;
+use PedimentAi\Jobs\ComposeJob;
+use PedimentAi\Jobs\JobStore;
 
 class StubProvider implements ProviderInterface {
     public array $sentArgs = [];
@@ -2174,10 +2174,10 @@ class StubProvider implements ProviderInterface {
 class ComposeJobTest extends \WP_UnitTestCase {
     public function setUp(): void {
         parent::setUp();
-        \starter_ai_install_tables();
+        \pediment_ai_install_tables();
         global $wpdb;
-        $wpdb->query( "TRUNCATE {$wpdb->prefix}starter_ai_jobs" );
-        \StarterAi\Anthropic\SchemaBuilder::invalidate();
+        $wpdb->query( "TRUNCATE {$wpdb->prefix}pediment_ai_jobs" );
+        \PedimentAi\Anthropic\SchemaBuilder::invalidate();
     }
 
     public function test_successful_compose_writes_result_and_urls(): void {
@@ -2186,23 +2186,23 @@ class ComposeJobTest extends \WP_UnitTestCase {
             'content' => [
                 [ 'type' => 'server_tool_use', 'id' => 'st_1', 'name' => 'web_fetch', 'input' => [ 'url' => 'https://acme.example/' ] ],
                 [ 'type' => 'tool_use', 'id' => 'tu', 'name' => 'emit_page',
-                  'input' => [ 'blocks' => [ [ 'name' => 'starter/hero', 'attributes' => [ 'headline' => 'Hi' ], 'innerBlocks' => [] ] ] ] ],
+                  'input' => [ 'blocks' => [ [ 'name' => 'pediment/hero', 'attributes' => [ 'headline' => 'Hi' ], 'innerBlocks' => [] ] ] ] ],
             ],
             'usage' => [ 'input_tokens' => 100, 'output_tokens' => 50 ],
             'model' => 'claude-sonnet-4-6',
         ] );
 
-        register_block_type( 'starter/hero', [ 'attributes' => [ 'headline' => [ 'type' => 'string' ] ], 'description' => 'Hero' ] );
+        register_block_type( 'pediment/hero', [ 'attributes' => [ 'headline' => [ 'type' => 'string' ] ], 'description' => 'Hero' ] );
 
         $id = $store->create( 1, 'compose', [ 'prompt' => 'Make a landing page', 'page_type' => 'landing' ] );
         ( new ComposeJob( $store, $provider ) )->run( $id );
 
         $job = $store->getById( $id );
         $this->assertSame( 'complete', $job['status'] );
-        $this->assertSame( 'starter/hero', $job['result']['blocks'][0]['name'] );
+        $this->assertSame( 'pediment/hero', $job['result']['blocks'][0]['name'] );
         $this->assertContains( 'https://acme.example/', array_column( $job['events'], 'url_fetched' ) );
 
-        unregister_block_type( 'starter/hero' );
+        unregister_block_type( 'pediment/hero' );
     }
 
     public function test_failed_validation_writes_error(): void {
@@ -2210,7 +2210,7 @@ class ComposeJobTest extends \WP_UnitTestCase {
         $provider = new StubProvider( [
             'content' => [
                 [ 'type' => 'tool_use', 'id' => 'tu', 'name' => 'emit_page',
-                  'input' => [ 'blocks' => [ [ 'name' => 'starter/nope', 'attributes' => [], 'innerBlocks' => [] ] ] ] ],
+                  'input' => [ 'blocks' => [ [ 'name' => 'pediment/nope', 'attributes' => [], 'innerBlocks' => [] ] ] ] ],
             ],
             'usage' => [ 'input_tokens' => 1, 'output_tokens' => 1 ],
             'model' => 'claude-sonnet-4-6',
@@ -2221,7 +2221,7 @@ class ComposeJobTest extends \WP_UnitTestCase {
 
         $job = $store->getById( $id );
         $this->assertSame( 'error', $job['status'] );
-        $this->assertStringContainsString( 'starter/nope', $job['error_message'] );
+        $this->assertStringContainsString( 'pediment/nope', $job['error_message'] );
     }
 
     public function test_wp_error_from_provider_marks_job_error(): void {
@@ -2243,7 +2243,7 @@ class ComposeJobTest extends \WP_UnitTestCase {
 - [ ] **Step 3: Run and verify fail**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter ComposeJobTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter ComposeJobTest
 ```
 
 Expected: FAIL.
@@ -2254,12 +2254,12 @@ Expected: FAIL.
 <?php
 declare(strict_types=1);
 
-namespace StarterAi\Jobs;
+namespace PedimentAi\Jobs;
 
-use StarterAi\Anthropic\ProviderInterface;
-use StarterAi\Anthropic\SchemaBuilder;
-use StarterAi\Anthropic\ToolUseParser;
-use StarterAi\BlockTree\Validator;
+use PedimentAi\Anthropic\ProviderInterface;
+use PedimentAi\Anthropic\SchemaBuilder;
+use PedimentAi\Anthropic\ToolUseParser;
+use PedimentAi\BlockTree\Validator;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
@@ -2314,12 +2314,12 @@ final class ComposeJob {
             'model'        => $response['model']  ?? null,
         ] );
 
-        do_action( 'starter_ai_job_completed', $job_id, $response, $job['kind'] );
+        do_action( 'pediment_ai_job_completed', $job_id, $response, $job['kind'] );
     }
 
     private function buildRequest( array $job, array $schema ): array {
         return [
-            'model'      => apply_filters( 'starter_ai_model_' . $job['kind'], 'claude-sonnet-4-6' ),
+            'model'      => apply_filters( 'pediment_ai_model_' . $job['kind'], 'claude-sonnet-4-6' ),
             'max_tokens' => 4096,
             'tools'      => [
                 [ 'type' => 'web_fetch_20250910', 'name' => 'web_fetch' ],
@@ -2393,19 +2393,19 @@ final class ComposeJob {
 Append to `src/Bootstrap.php`'s `register()`:
 
 ```php
-add_action( 'starter_ai_job_run', static function ( int $job_id ) {
-    $store    = new \StarterAi\Jobs\JobStore();
-    $provider = apply_filters( 'starter_ai_provider', new \StarterAi\Anthropic\Client(
-        (string) ( defined( 'ANTHROPIC_API_KEY' ) ? ANTHROPIC_API_KEY : get_option( 'starter_ai_api_key', '' ) )
+add_action( 'pediment_ai_job_run', static function ( int $job_id ) {
+    $store    = new \PedimentAi\Jobs\JobStore();
+    $provider = apply_filters( 'pediment_ai_provider', new \PedimentAi\Anthropic\Client(
+        (string) ( defined( 'ANTHROPIC_API_KEY' ) ? ANTHROPIC_API_KEY : get_option( 'pediment_ai_api_key', '' ) )
     ) );
-    ( new \StarterAi\Jobs\ComposeJob( $store, $provider ) )->run( $job_id );
+    ( new \PedimentAi\Jobs\ComposeJob( $store, $provider ) )->run( $job_id );
 }, 10, 1 );
 ```
 
 - [ ] **Step 6: Run the tests**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter ComposeJobTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter ComposeJobTest
 ```
 
 Expected: 3 tests pass.
@@ -2432,14 +2432,14 @@ git commit -m "feat(jobs): ComposeJob — Action Scheduler worker with web_fetch
 
 ```php
 <?php
-namespace StarterAi\Tests\Rest;
+namespace PedimentAi\Tests\Rest;
 
 class ComposeControllerTest extends \WP_UnitTestCase {
     private \WP_REST_Server $server;
 
     public function setUp(): void {
         parent::setUp();
-        \starter_ai_install_tables();
+        \pediment_ai_install_tables();
         global $wp_rest_server;
         $wp_rest_server = new \WP_REST_Server();
         $this->server   = $wp_rest_server;
@@ -2448,7 +2448,7 @@ class ComposeControllerTest extends \WP_UnitTestCase {
     }
 
     public function test_returns_job_id_on_success(): void {
-        $req = new \WP_REST_Request( 'POST', '/starter-ai/v1/compose' );
+        $req = new \WP_REST_Request( 'POST', '/pediment-ai/v1/compose' );
         $req->set_param( 'prompt',    'Hello' );
         $req->set_param( 'page_type', 'landing' );
         $res = $this->server->dispatch( $req );
@@ -2458,14 +2458,14 @@ class ComposeControllerTest extends \WP_UnitTestCase {
 
     public function test_rejects_unauthenticated(): void {
         wp_set_current_user( 0 );
-        $req = new \WP_REST_Request( 'POST', '/starter-ai/v1/compose' );
+        $req = new \WP_REST_Request( 'POST', '/pediment-ai/v1/compose' );
         $req->set_param( 'prompt', 'x' );
         $res = $this->server->dispatch( $req );
         $this->assertSame( 401, $res->get_status() );
     }
 
     public function test_rejects_empty_prompt(): void {
-        $req = new \WP_REST_Request( 'POST', '/starter-ai/v1/compose' );
+        $req = new \WP_REST_Request( 'POST', '/pediment-ai/v1/compose' );
         $req->set_param( 'prompt', '' );
         $res = $this->server->dispatch( $req );
         $this->assertSame( 400, $res->get_status() );
@@ -2476,7 +2476,7 @@ class ComposeControllerTest extends \WP_UnitTestCase {
 - [ ] **Step 2: Run and verify fail**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter ComposeControllerTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter ComposeControllerTest
 ```
 
 Expected: FAIL.
@@ -2487,16 +2487,16 @@ Expected: FAIL.
 <?php
 declare(strict_types=1);
 
-namespace StarterAi\Rest;
+namespace PedimentAi\Rest;
 
-use StarterAi\Jobs\JobStore;
+use PedimentAi\Jobs\JobStore;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
 final class ComposeController {
-    public const NAMESPACE = 'starter-ai/v1';
+    public const NAMESPACE = 'pediment-ai/v1';
 
     public function register(): void {
         register_rest_route( self::NAMESPACE, '/compose', [
@@ -2512,7 +2512,7 @@ final class ComposeController {
         $tone      = sanitize_text_field( (string) $request->get_param( 'tone' ) );
 
         if ( '' === $prompt ) {
-            return new \WP_Error( 'starter_ai_invalid', __( 'Prompt is required.', 'starter-ai' ), [ 'status' => 400 ] );
+            return new \WP_Error( 'pediment_ai_invalid', __( 'Prompt is required.', 'pediment-ai' ), [ 'status' => 400 ] );
         }
 
         $store = new JobStore();
@@ -2522,7 +2522,7 @@ final class ComposeController {
             'tone'      => $tone,
         ] );
 
-        as_schedule_single_action( time(), 'starter_ai_job_run', [ $job_id ], 'starter-ai' );
+        as_schedule_single_action( time(), 'pediment_ai_job_run', [ $job_id ], 'pediment-ai' );
 
         return new \WP_REST_Response( [ 'job_id' => $job_id ], 202 );
     }
@@ -2533,14 +2533,14 @@ final class ComposeController {
 
 ```php
 add_action( 'rest_api_init', static function () {
-    ( new \StarterAi\Rest\ComposeController() )->register();
+    ( new \PedimentAi\Rest\ComposeController() )->register();
 } );
 ```
 
 - [ ] **Step 5: Run the tests**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter ComposeControllerTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter ComposeControllerTest
 ```
 
 Expected: 3 tests pass.
@@ -2563,14 +2563,14 @@ git commit -m "feat(rest): POST /v1/compose enqueues compose job"
 
 ```php
 <?php
-namespace StarterAi\Tests\Rest;
+namespace PedimentAi\Tests\Rest;
 
 class EditControllerTest extends \WP_UnitTestCase {
     private \WP_REST_Server $server;
 
     public function setUp(): void {
         parent::setUp();
-        \starter_ai_install_tables();
+        \pediment_ai_install_tables();
         global $wp_rest_server;
         $wp_rest_server = new \WP_REST_Server();
         $this->server   = $wp_rest_server;
@@ -2579,10 +2579,10 @@ class EditControllerTest extends \WP_UnitTestCase {
     }
 
     public function test_accepts_block_tree_and_returns_job_id(): void {
-        $req = new \WP_REST_Request( 'POST', '/starter-ai/v1/edit' );
+        $req = new \WP_REST_Request( 'POST', '/pediment-ai/v1/edit' );
         $req->set_param( 'instruction', 'Add a CTA' );
         $req->set_param( 'tree', [
-            [ 'name' => 'starter/hero', 'attributes' => [ 'headline' => 'Old' ], 'innerBlocks' => [] ],
+            [ 'name' => 'pediment/hero', 'attributes' => [ 'headline' => 'Old' ], 'innerBlocks' => [] ],
         ] );
         $res = $this->server->dispatch( $req );
         $this->assertSame( 202, $res->get_status() );
@@ -2590,14 +2590,14 @@ class EditControllerTest extends \WP_UnitTestCase {
     }
 
     public function test_rejects_empty_instruction(): void {
-        $req = new \WP_REST_Request( 'POST', '/starter-ai/v1/edit' );
+        $req = new \WP_REST_Request( 'POST', '/pediment-ai/v1/edit' );
         $req->set_param( 'instruction', '' );
         $req->set_param( 'tree', [] );
         $this->assertSame( 400, $this->server->dispatch( $req )->get_status() );
     }
 
     public function test_rejects_non_array_tree(): void {
-        $req = new \WP_REST_Request( 'POST', '/starter-ai/v1/edit' );
+        $req = new \WP_REST_Request( 'POST', '/pediment-ai/v1/edit' );
         $req->set_param( 'instruction', 'x' );
         $req->set_param( 'tree', 'not an array' );
         $this->assertSame( 400, $this->server->dispatch( $req )->get_status() );
@@ -2608,7 +2608,7 @@ class EditControllerTest extends \WP_UnitTestCase {
 - [ ] **Step 2: Run and verify fail**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter EditControllerTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter EditControllerTest
 ```
 
 Expected: FAIL.
@@ -2619,9 +2619,9 @@ Expected: FAIL.
 <?php
 declare(strict_types=1);
 
-namespace StarterAi\Rest;
+namespace PedimentAi\Rest;
 
-use StarterAi\Jobs\JobStore;
+use PedimentAi\Jobs\JobStore;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
@@ -2641,10 +2641,10 @@ final class EditController {
         $tree        = $request->get_param( 'tree' );
 
         if ( '' === $instruction ) {
-            return new \WP_Error( 'starter_ai_invalid', __( 'Instruction is required.', 'starter-ai' ), [ 'status' => 400 ] );
+            return new \WP_Error( 'pediment_ai_invalid', __( 'Instruction is required.', 'pediment-ai' ), [ 'status' => 400 ] );
         }
         if ( ! is_array( $tree ) ) {
-            return new \WP_Error( 'starter_ai_invalid', __( 'Tree must be an array.', 'starter-ai' ), [ 'status' => 400 ] );
+            return new \WP_Error( 'pediment_ai_invalid', __( 'Tree must be an array.', 'pediment-ai' ), [ 'status' => 400 ] );
         }
 
         $store = new JobStore();
@@ -2653,7 +2653,7 @@ final class EditController {
             'existing_tree' => $tree,
         ] );
 
-        as_schedule_single_action( time(), 'starter_ai_job_run', [ $job_id ], 'starter-ai' );
+        as_schedule_single_action( time(), 'pediment_ai_job_run', [ $job_id ], 'pediment-ai' );
 
         return new \WP_REST_Response( [ 'job_id' => $job_id ], 202 );
     }
@@ -2665,13 +2665,13 @@ final class EditController {
 Inside the existing `rest_api_init` callback:
 
 ```php
-( new \StarterAi\Rest\EditController() )->register();
+( new \PedimentAi\Rest\EditController() )->register();
 ```
 
 - [ ] **Step 5: Run the tests**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter EditControllerTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter EditControllerTest
 ```
 
 Expected: 3 tests pass.
@@ -2696,9 +2696,9 @@ git commit -m "feat(rest): POST /v1/edit enqueues edit job"
 
 ```php
 <?php
-namespace StarterAi\Tests\Rest;
+namespace PedimentAi\Tests\Rest;
 
-use StarterAi\Anthropic\ProviderInterface;
+use PedimentAi\Anthropic\ProviderInterface;
 
 class RefineControllerTest extends \WP_UnitTestCase {
     private \WP_REST_Server $server;
@@ -2708,9 +2708,9 @@ class RefineControllerTest extends \WP_UnitTestCase {
         global $wp_rest_server;
         $wp_rest_server = new \WP_REST_Server();
         $this->server   = $wp_rest_server;
-        \StarterAi\Anthropic\SchemaBuilder::invalidate();
+        \PedimentAi\Anthropic\SchemaBuilder::invalidate();
 
-        add_filter( 'starter_ai_provider', function () {
+        add_filter( 'pediment_ai_provider', function () {
             return new class implements ProviderInterface {
                 public function messages( array $args ) {
                     return [
@@ -2725,7 +2725,7 @@ class RefineControllerTest extends \WP_UnitTestCase {
             };
         } );
 
-        register_block_type( 'starter/hero', [
+        register_block_type( 'pediment/hero', [
             'attributes'  => [ 'headline' => [ 'type' => 'string' ] ],
             'description' => 'Hero',
         ] );
@@ -2735,14 +2735,14 @@ class RefineControllerTest extends \WP_UnitTestCase {
     }
 
     public function tearDown(): void {
-        unregister_block_type( 'starter/hero' );
-        remove_all_filters( 'starter_ai_provider' );
+        unregister_block_type( 'pediment/hero' );
+        remove_all_filters( 'pediment_ai_provider' );
         parent::tearDown();
     }
 
     public function test_returns_refined_attributes(): void {
-        $req = new \WP_REST_Request( 'POST', '/starter-ai/v1/refine' );
-        $req->set_param( 'blockName',    'starter/hero' );
+        $req = new \WP_REST_Request( 'POST', '/pediment-ai/v1/refine' );
+        $req->set_param( 'blockName',    'pediment/hero' );
         $req->set_param( 'attributes',   [ 'headline' => 'Old' ] );
         $req->set_param( 'innerBlocks',  [] );
         $req->set_param( 'instruction',  'Punchier' );
@@ -2753,8 +2753,8 @@ class RefineControllerTest extends \WP_UnitTestCase {
     }
 
     public function test_rejects_unknown_block(): void {
-        $req = new \WP_REST_Request( 'POST', '/starter-ai/v1/refine' );
-        $req->set_param( 'blockName',   'starter/unknown' );
+        $req = new \WP_REST_Request( 'POST', '/pediment-ai/v1/refine' );
+        $req->set_param( 'blockName',   'pediment/unknown' );
         $req->set_param( 'attributes',  [] );
         $req->set_param( 'instruction', 'x' );
         $this->assertSame( 400, $this->server->dispatch( $req )->get_status() );
@@ -2765,7 +2765,7 @@ class RefineControllerTest extends \WP_UnitTestCase {
 - [ ] **Step 2: Run and verify fail**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter RefineControllerTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter RefineControllerTest
 ```
 
 Expected: FAIL.
@@ -2776,11 +2776,11 @@ Expected: FAIL.
 <?php
 declare(strict_types=1);
 
-namespace StarterAi\Rest;
+namespace PedimentAi\Rest;
 
-use StarterAi\Anthropic\Client;
-use StarterAi\Anthropic\SchemaBuilder;
-use StarterAi\Anthropic\ToolUseParser;
+use PedimentAi\Anthropic\Client;
+use PedimentAi\Anthropic\SchemaBuilder;
+use PedimentAi\Anthropic\ToolUseParser;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
@@ -2802,21 +2802,21 @@ final class RefineController {
         $instruction = trim( (string) $request->get_param( 'instruction' ) );
 
         if ( '' === $instruction ) {
-            return new \WP_Error( 'starter_ai_invalid', __( 'Instruction is required.', 'starter-ai' ), [ 'status' => 400 ] );
+            return new \WP_Error( 'pediment_ai_invalid', __( 'Instruction is required.', 'pediment-ai' ), [ 'status' => 400 ] );
         }
 
         $schema = ( new SchemaBuilder() )->build();
         if ( ! isset( $schema['blocks'][ $block_name ] ) ) {
-            return new \WP_Error( 'starter_ai_invalid', __( 'Unknown block.', 'starter-ai' ), [ 'status' => 400 ] );
+            return new \WP_Error( 'pediment_ai_invalid', __( 'Unknown block.', 'pediment-ai' ), [ 'status' => 400 ] );
         }
 
         $spec     = $schema['blocks'][ $block_name ];
-        $provider = apply_filters( 'starter_ai_provider', new Client(
-            (string) ( defined( 'ANTHROPIC_API_KEY' ) ? ANTHROPIC_API_KEY : get_option( 'starter_ai_api_key', '' ) )
+        $provider = apply_filters( 'pediment_ai_provider', new Client(
+            (string) ( defined( 'ANTHROPIC_API_KEY' ) ? ANTHROPIC_API_KEY : get_option( 'pediment_ai_api_key', '' ) )
         ) );
 
         $response = $provider->messages( [
-            'model'      => apply_filters( 'starter_ai_model_refine', 'claude-haiku-4-5' ),
+            'model'      => apply_filters( 'pediment_ai_model_refine', 'claude-haiku-4-5' ),
             'max_tokens' => 2048,
             'tools'      => [ [
                 'name'         => 'emit_block',
@@ -2850,7 +2850,7 @@ final class RefineController {
 
         $parsed = ( new ToolUseParser() )->parse( $response );
         if ( 'emit_block' !== $parsed['tool'] ) {
-            return new \WP_Error( 'starter_ai_no_emit', __( 'Model did not emit a block.', 'starter-ai' ), [ 'status' => 502 ] );
+            return new \WP_Error( 'pediment_ai_no_emit', __( 'Model did not emit a block.', 'pediment-ai' ), [ 'status' => 502 ] );
         }
 
         return new \WP_REST_Response( [
@@ -2864,13 +2864,13 @@ final class RefineController {
 - [ ] **Step 4: Register the route in Bootstrap**
 
 ```php
-( new \StarterAi\Rest\RefineController() )->register();
+( new \PedimentAi\Rest\RefineController() )->register();
 ```
 
 - [ ] **Step 5: Run the tests**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter RefineControllerTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter RefineControllerTest
 ```
 
 Expected: 2 tests pass.
@@ -2893,18 +2893,18 @@ git commit -m "feat(rest): POST /v1/refine — synchronous single-block refineme
 
 ```php
 <?php
-namespace StarterAi\Tests\Rest;
+namespace PedimentAi\Tests\Rest;
 
-use StarterAi\Jobs\JobStore;
+use PedimentAi\Jobs\JobStore;
 
 class StatusControllerTest extends \WP_UnitTestCase {
     private \WP_REST_Server $server;
 
     public function setUp(): void {
         parent::setUp();
-        \starter_ai_install_tables();
+        \pediment_ai_install_tables();
         global $wpdb, $wp_rest_server;
-        $wpdb->query( "TRUNCATE {$wpdb->prefix}starter_ai_jobs" );
+        $wpdb->query( "TRUNCATE {$wpdb->prefix}pediment_ai_jobs" );
         $wp_rest_server = new \WP_REST_Server();
         $this->server   = $wp_rest_server;
         do_action( 'rest_api_init' );
@@ -2919,7 +2919,7 @@ class StatusControllerTest extends \WP_UnitTestCase {
         $store->updateStatus( $id, 'composing' );
         $store->appendEvent( $id, [ 'url_fetched' => 'https://x' ] );
 
-        $req = new \WP_REST_Request( 'GET', "/starter-ai/v1/jobs/{$id}" );
+        $req = new \WP_REST_Request( 'GET', "/pediment-ai/v1/jobs/{$id}" );
         $res = $this->server->dispatch( $req );
 
         $this->assertSame( 200, $res->get_status() );
@@ -2936,12 +2936,12 @@ class StatusControllerTest extends \WP_UnitTestCase {
 
         $store = new JobStore();
         $id    = $store->create( $user_id, 'compose', [] );
-        $store->complete( $id, [ 'blocks' => [ [ 'name' => 'starter/hero', 'attributes' => [], 'innerBlocks' => [] ] ] ] );
+        $store->complete( $id, [ 'blocks' => [ [ 'name' => 'pediment/hero', 'attributes' => [], 'innerBlocks' => [] ] ] ] );
 
-        $req = new \WP_REST_Request( 'GET', "/starter-ai/v1/jobs/{$id}" );
+        $req = new \WP_REST_Request( 'GET', "/pediment-ai/v1/jobs/{$id}" );
         $res = $this->server->dispatch( $req );
         $this->assertSame( 'complete', $res->get_data()['status'] );
-        $this->assertSame( 'starter/hero', $res->get_data()['result']['blocks'][0]['name'] );
+        $this->assertSame( 'pediment/hero', $res->get_data()['result']['blocks'][0]['name'] );
     }
 
     public function test_other_user_cannot_read_job(): void {
@@ -2952,7 +2952,7 @@ class StatusControllerTest extends \WP_UnitTestCase {
         $id    = $store->create( $owner, 'compose', [] );
 
         wp_set_current_user( $other );
-        $req = new \WP_REST_Request( 'GET', "/starter-ai/v1/jobs/{$id}" );
+        $req = new \WP_REST_Request( 'GET', "/pediment-ai/v1/jobs/{$id}" );
         $this->assertSame( 403, $this->server->dispatch( $req )->get_status() );
     }
 }
@@ -2961,7 +2961,7 @@ class StatusControllerTest extends \WP_UnitTestCase {
 - [ ] **Step 2: Run and verify fail**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter StatusControllerTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter StatusControllerTest
 ```
 
 Expected: FAIL.
@@ -2972,9 +2972,9 @@ Expected: FAIL.
 <?php
 declare(strict_types=1);
 
-namespace StarterAi\Rest;
+namespace PedimentAi\Rest;
 
-use StarterAi\Jobs\JobStore;
+use PedimentAi\Jobs\JobStore;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
@@ -2996,10 +2996,10 @@ final class StatusController {
         $id  = (int) $request->get_param( 'id' );
         $job = ( new JobStore() )->getById( $id );
         if ( ! $job ) {
-            return new \WP_Error( 'starter_ai_not_found', __( 'Job not found.', 'starter-ai' ), [ 'status' => 404 ] );
+            return new \WP_Error( 'pediment_ai_not_found', __( 'Job not found.', 'pediment-ai' ), [ 'status' => 404 ] );
         }
         if ( $job['user_id'] !== get_current_user_id() && ! current_user_can( 'manage_options' ) ) {
-            return new \WP_Error( 'starter_ai_forbidden', __( 'Not your job.', 'starter-ai' ), [ 'status' => 403 ] );
+            return new \WP_Error( 'pediment_ai_forbidden', __( 'Not your job.', 'pediment-ai' ), [ 'status' => 403 ] );
         }
 
         $urls = array_values( array_filter( array_column( $job['events'], 'url_fetched' ) ) );
@@ -3027,13 +3027,13 @@ final class StatusController {
 - [ ] **Step 4: Register the route in Bootstrap**
 
 ```php
-( new \StarterAi\Rest\StatusController() )->register();
+( new \PedimentAi\Rest\StatusController() )->register();
 ```
 
 - [ ] **Step 5: Run the tests**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter StatusControllerTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter StatusControllerTest
 ```
 
 Expected: 3 tests pass.
@@ -3053,7 +3053,7 @@ git commit -m "feat(rest): GET /v1/jobs/{id} status endpoint for polling"
 
 **Files:**
 - Create: `src/Mock/MockProvider.php`
-- Modify: `src/Bootstrap.php` (swap provider when STARTER_AI_MOCK=true)
+- Modify: `src/Bootstrap.php` (swap provider when PEDIMENT_AI_MOCK=true)
 - Create: `tests/phpunit/Mock/MockProviderTest.php`
 
 > **Behavior:** MockProvider reads from `src/Mock/fixtures/*.json` and returns an Anthropic-shaped response containing a tool_use block. Selection rules:
@@ -3065,21 +3065,21 @@ git commit -m "feat(rest): GET /v1/jobs/{id} status endpoint for polling"
 
 ```php
 <?php
-namespace StarterAi\Tests\Mock;
+namespace PedimentAi\Tests\Mock;
 
-use StarterAi\Mock\MockProvider;
+use PedimentAi\Mock\MockProvider;
 
 class MockProviderTest extends \WP_UnitTestCase {
     private string $fixturesDir;
 
     public function setUp(): void {
         parent::setUp();
-        $this->fixturesDir = sys_get_temp_dir() . '/starter-ai-fixtures-' . uniqid();
+        $this->fixturesDir = sys_get_temp_dir() . '/pediment-ai-fixtures-' . uniqid();
         mkdir( $this->fixturesDir, 0777, true );
         file_put_contents( $this->fixturesDir . '/compose-landing.json', wp_json_encode( [
             'content' => [
                 [ 'type' => 'tool_use', 'id' => 'tu', 'name' => 'emit_page',
-                  'input' => [ 'blocks' => [ [ 'name' => 'starter/hero', 'attributes' => [ 'headline' => 'Mock landing' ], 'innerBlocks' => [] ] ] ] ],
+                  'input' => [ 'blocks' => [ [ 'name' => 'pediment/hero', 'attributes' => [ 'headline' => 'Mock landing' ], 'innerBlocks' => [] ] ] ] ],
             ],
             'usage' => [ 'input_tokens' => 0, 'output_tokens' => 0 ],
             'model' => 'mock',
@@ -3112,7 +3112,7 @@ class MockProviderTest extends \WP_UnitTestCase {
     public function test_returns_refine_fixture(): void {
         $provider = new MockProvider( $this->fixturesDir );
         $response = $provider->messages( [
-            'messages' => [ [ 'role' => 'user', 'content' => [ [ 'type' => 'text', 'text' => 'Refine this block: starter/hero' ] ] ] ],
+            'messages' => [ [ 'role' => 'user', 'content' => [ [ 'type' => 'text', 'text' => 'Refine this block: pediment/hero' ] ] ] ],
             'tools'    => [ [ 'name' => 'emit_block' ] ],
         ] );
         $this->assertSame( 'Mock refined', $response['content'][0]['input']['attributes']['headline'] );
@@ -3132,7 +3132,7 @@ class MockProviderTest extends \WP_UnitTestCase {
 - [ ] **Step 2: Run and verify fail**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter MockProviderTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter MockProviderTest
 ```
 
 Expected: FAIL.
@@ -3143,9 +3143,9 @@ Expected: FAIL.
 <?php
 declare(strict_types=1);
 
-namespace StarterAi\Mock;
+namespace PedimentAi\Mock;
 
-use StarterAi\Anthropic\ProviderInterface;
+use PedimentAi\Anthropic\ProviderInterface;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
@@ -3166,11 +3166,11 @@ final class MockProvider implements ProviderInterface {
 
         $path = $this->fixturesDir . '/' . $fixture . '.json';
         if ( ! file_exists( $path ) ) {
-            return new \WP_Error( 'starter_ai_mock_missing', "Missing fixture: {$fixture}" );
+            return new \WP_Error( 'pediment_ai_mock_missing', "Missing fixture: {$fixture}" );
         }
         $data = json_decode( (string) file_get_contents( $path ), true );
         if ( ! is_array( $data ) ) {
-            return new \WP_Error( 'starter_ai_mock_invalid', "Invalid fixture: {$fixture}" );
+            return new \WP_Error( 'pediment_ai_mock_invalid', "Invalid fixture: {$fixture}" );
         }
         return $data;
     }
@@ -3224,9 +3224,9 @@ final class MockProvider implements ProviderInterface {
 Append to `src/Bootstrap.php`'s `register()`:
 
 ```php
-add_filter( 'starter_ai_provider', static function ( $default ) {
-    if ( defined( 'STARTER_AI_MOCK' ) && STARTER_AI_MOCK ) {
-        return new \StarterAi\Mock\MockProvider( __DIR__ . '/Mock/fixtures' );
+add_filter( 'pediment_ai_provider', static function ( $default ) {
+    if ( defined( 'PEDIMENT_AI_MOCK' ) && PEDIMENT_AI_MOCK ) {
+        return new \PedimentAi\Mock\MockProvider( __DIR__ . '/Mock/fixtures' );
     }
     return $default;
 } );
@@ -3235,7 +3235,7 @@ add_filter( 'starter_ai_provider', static function ( $default ) {
 - [ ] **Step 5: Run the tests**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter MockProviderTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter MockProviderTest
 ```
 
 Expected: 3 tests pass.
@@ -3265,7 +3265,7 @@ git commit -m "feat(mock): MockProvider with fixture-based response selection"
 
 ```php
 <?php
-namespace StarterAi\Tests\Mock;
+namespace PedimentAi\Tests\Mock;
 
 class FixturesTest extends \WP_UnitTestCase {
     private const REQUIRED = [
@@ -3300,7 +3300,7 @@ class FixturesTest extends \WP_UnitTestCase {
 - [ ] **Step 2: Run and verify fail**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter FixturesTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter FixturesTest
 ```
 
 Expected: FAIL (no fixtures exist).
@@ -3318,11 +3318,11 @@ Expected: FAIL (no fixtures exist).
       "name": "emit_page",
       "input": {
         "blocks": [
-          { "name": "starter/hero", "attributes": { "variant": "centered", "headline": "Welcome", "subheadline": "A clear, benefit-led promise.", "ctaText": "Get started", "ctaUrl": "/contact" }, "innerBlocks": [] },
-          { "name": "starter/cta",  "attributes": { "title": "Ready to start?", "body": "Tell us about your project.", "primaryText": "Contact us", "primaryUrl": "/contact" }, "innerBlocks": [] },
-          { "name": "starter/faq",  "attributes": {}, "innerBlocks": [
-            { "name": "starter/faq-item", "attributes": { "question": "How long does a project take?", "answer": "Most engagements run 4–8 weeks." }, "innerBlocks": [] },
-            { "name": "starter/faq-item", "attributes": { "question": "What's your pricing?", "answer": "Fixed-scope sprints or monthly retainer." }, "innerBlocks": [] }
+          { "name": "pediment/hero", "attributes": { "variant": "centered", "headline": "Welcome", "subheadline": "A clear, benefit-led promise.", "ctaText": "Get started", "ctaUrl": "/contact" }, "innerBlocks": [] },
+          { "name": "pediment/cta",  "attributes": { "title": "Ready to start?", "body": "Tell us about your project.", "primaryText": "Contact us", "primaryUrl": "/contact" }, "innerBlocks": [] },
+          { "name": "pediment/faq",  "attributes": {}, "innerBlocks": [
+            { "name": "pediment/faq-item", "attributes": { "question": "How long does a project take?", "answer": "Most engagements run 4–8 weeks." }, "innerBlocks": [] },
+            { "name": "pediment/faq-item", "attributes": { "question": "What's your pricing?", "answer": "Fixed-scope sprints or monthly retainer." }, "innerBlocks": [] }
           ] }
         ]
       }
@@ -3339,11 +3339,11 @@ Expected: FAIL (no fixtures exist).
   "usage": { "input_tokens": 0, "output_tokens": 0 },
   "content": [
     { "type": "tool_use", "id": "tu_mock_about", "name": "emit_page", "input": { "blocks": [
-      { "name": "starter/hero", "attributes": { "variant": "default", "headline": "About us", "subheadline": "Who we are and how we work." }, "innerBlocks": [] },
-      { "name": "starter/prose", "attributes": {}, "innerBlocks": [
+      { "name": "pediment/hero", "attributes": { "variant": "default", "headline": "About us", "subheadline": "Who we are and how we work." }, "innerBlocks": [] },
+      { "name": "pediment/prose", "attributes": {}, "innerBlocks": [
         { "name": "core/paragraph", "attributes": { "content": "We help product teams ship better marketing sites." }, "innerBlocks": [] }
       ] },
-      { "name": "starter/stat", "attributes": { "value": "40+", "label": "Sites shipped", "context": "since 2021" }, "innerBlocks": [] }
+      { "name": "pediment/stat", "attributes": { "value": "40+", "label": "Sites shipped", "context": "since 2021" }, "innerBlocks": [] }
     ] } }
   ]
 }
@@ -3357,10 +3357,10 @@ Expected: FAIL (no fixtures exist).
   "usage": { "input_tokens": 0, "output_tokens": 0 },
   "content": [
     { "type": "tool_use", "id": "tu_mock_services", "name": "emit_page", "input": { "blocks": [
-      { "name": "starter/hero", "attributes": { "variant": "split", "headline": "Services", "subheadline": "End-to-end product marketing sites." }, "innerBlocks": [] },
-      { "name": "starter/cta",  "attributes": { "title": "What we do", "body": "Strategy, design, build, ship.", "primaryText": "Book a call", "primaryUrl": "/contact" }, "innerBlocks": [] },
-      { "name": "starter/faq",  "attributes": {}, "innerBlocks": [
-        { "name": "starter/faq-item", "attributes": { "question": "Do you redesign existing sites?", "answer": "Yes — half our work is refresh, not greenfield." }, "innerBlocks": [] }
+      { "name": "pediment/hero", "attributes": { "variant": "split", "headline": "Services", "subheadline": "End-to-end product marketing sites." }, "innerBlocks": [] },
+      { "name": "pediment/cta",  "attributes": { "title": "What we do", "body": "Strategy, design, build, ship.", "primaryText": "Book a call", "primaryUrl": "/contact" }, "innerBlocks": [] },
+      { "name": "pediment/faq",  "attributes": {}, "innerBlocks": [
+        { "name": "pediment/faq-item", "attributes": { "question": "Do you redesign existing sites?", "answer": "Yes — half our work is refresh, not greenfield." }, "innerBlocks": [] }
       ] }
     ] } }
   ]
@@ -3375,8 +3375,8 @@ Expected: FAIL (no fixtures exist).
   "usage": { "input_tokens": 0, "output_tokens": 0 },
   "content": [
     { "type": "tool_use", "id": "tu_mock_contact", "name": "emit_page", "input": { "blocks": [
-      { "name": "starter/hero", "attributes": { "variant": "centered", "headline": "Contact", "subheadline": "Tell us about your project." }, "innerBlocks": [] },
-      { "name": "starter/contact-form", "attributes": { "includePhone": true }, "innerBlocks": [] }
+      { "name": "pediment/hero", "attributes": { "variant": "centered", "headline": "Contact", "subheadline": "Tell us about your project." }, "innerBlocks": [] },
+      { "name": "pediment/contact-form", "attributes": { "includePhone": true }, "innerBlocks": [] }
     ] } }
   ]
 }
@@ -3390,9 +3390,9 @@ Expected: FAIL (no fixtures exist).
   "usage": { "input_tokens": 0, "output_tokens": 0 },
   "content": [
     { "type": "tool_use", "id": "tu_edit_faq", "name": "emit_page", "input": { "blocks": [
-      { "name": "starter/hero", "attributes": { "headline": "Same hero" }, "innerBlocks": [] },
-      { "name": "starter/faq",  "attributes": {}, "innerBlocks": [
-        { "name": "starter/faq-item", "attributes": { "question": "Newly added question?", "answer": "Newly added answer." }, "innerBlocks": [] }
+      { "name": "pediment/hero", "attributes": { "headline": "Same hero" }, "innerBlocks": [] },
+      { "name": "pediment/faq",  "attributes": {}, "innerBlocks": [
+        { "name": "pediment/faq-item", "attributes": { "question": "Newly added question?", "answer": "Newly added answer." }, "innerBlocks": [] }
       ] }
     ] } }
   ]
@@ -3407,7 +3407,7 @@ Expected: FAIL (no fixtures exist).
   "usage": { "input_tokens": 0, "output_tokens": 0 },
   "content": [
     { "type": "tool_use", "id": "tu_edit_shorten", "name": "emit_page", "input": { "blocks": [
-      { "name": "starter/hero", "attributes": { "headline": "Shorter." }, "innerBlocks": [] }
+      { "name": "pediment/hero", "attributes": { "headline": "Shorter." }, "innerBlocks": [] }
     ] } }
   ]
 }
@@ -3461,7 +3461,7 @@ Expected: FAIL (no fixtures exist).
 - [ ] **Step 12: Run the tests**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter FixturesTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter FixturesTest
 ```
 
 Expected: 1 test passes (covers all 9 fixtures).
@@ -3482,23 +3482,23 @@ git commit -m "feat(mock): 9 fixture files for compose, edit, refine flows"
 **Files:**
 - Create: `src/Usage/Pricing.php`
 - Create: `src/Usage/Tracker.php`
-- Modify: `src/Bootstrap.php` (hook `starter_ai_job_completed`)
+- Modify: `src/Bootstrap.php` (hook `pediment_ai_job_completed`)
 - Create: `tests/phpunit/Usage/TrackerTest.php`
 
 - [ ] **Step 1: Write the failing test**
 
 ```php
 <?php
-namespace StarterAi\Tests\Usage;
+namespace PedimentAi\Tests\Usage;
 
-use StarterAi\Usage\Tracker;
+use PedimentAi\Usage\Tracker;
 
 class TrackerTest extends \WP_UnitTestCase {
     public function setUp(): void {
         parent::setUp();
-        \starter_ai_install_tables();
+        \pediment_ai_install_tables();
         global $wpdb;
-        $wpdb->query( "TRUNCATE {$wpdb->prefix}starter_ai_usage" );
+        $wpdb->query( "TRUNCATE {$wpdb->prefix}pediment_ai_usage" );
     }
 
     public function test_records_a_call(): void {
@@ -3509,7 +3509,7 @@ class TrackerTest extends \WP_UnitTestCase {
         ], 2 );
 
         global $wpdb;
-        $row = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}starter_ai_usage", ARRAY_A );
+        $row = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}pediment_ai_usage", ARRAY_A );
         $this->assertSame( 'compose', $row['kind'] );
         $this->assertSame( '1000',    $row['input_tokens'] );
         $this->assertSame( '500',     $row['output_tokens'] );
@@ -3534,7 +3534,7 @@ class TrackerTest extends \WP_UnitTestCase {
 - [ ] **Step 2: Run and verify fail**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter TrackerTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter TrackerTest
 ```
 
 Expected: FAIL.
@@ -3545,7 +3545,7 @@ Expected: FAIL.
 <?php
 declare(strict_types=1);
 
-namespace StarterAi\Usage;
+namespace PedimentAi\Usage;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
@@ -3590,7 +3590,7 @@ final class Pricing {
 <?php
 declare(strict_types=1);
 
-namespace StarterAi\Usage;
+namespace PedimentAi\Usage;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
@@ -3601,7 +3601,7 @@ final class Tracker {
 
     public function __construct() {
         global $wpdb;
-        $this->table = $wpdb->prefix . 'starter_ai_usage';
+        $this->table = $wpdb->prefix . 'pediment_ai_usage';
     }
 
     public function record( int $user_id, string $kind, array $response, int $web_fetch_count = 0 ): void {
@@ -3663,18 +3663,18 @@ final class Tracker {
 Append to `src/Bootstrap.php`'s `register()`:
 
 ```php
-add_action( 'starter_ai_job_completed', static function ( int $job_id, array $response, string $kind ) {
-    $job = ( new \StarterAi\Jobs\JobStore() )->getById( $job_id );
+add_action( 'pediment_ai_job_completed', static function ( int $job_id, array $response, string $kind ) {
+    $job = ( new \PedimentAi\Jobs\JobStore() )->getById( $job_id );
     if ( ! $job ) { return; }
     $fetched = count( $job['result']['urls_fetched'] ?? [] );
-    ( new \StarterAi\Usage\Tracker() )->record( $job['user_id'], $kind, $response, $fetched );
+    ( new \PedimentAi\Usage\Tracker() )->record( $job['user_id'], $kind, $response, $fetched );
 }, 10, 3 );
 ```
 
 - [ ] **Step 6: Run the tests**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter TrackerTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter TrackerTest
 ```
 
 Expected: 2 tests pass.
@@ -3697,9 +3697,9 @@ git commit -m "feat(usage): Tracker + Pricing with month-to-date totals"
 
 ```php
 <?php
-namespace StarterAi\Tests\Usage;
+namespace PedimentAi\Tests\Usage;
 
-use StarterAi\Usage\RateLimiter;
+use PedimentAi\Usage\RateLimiter;
 
 class RateLimiterTest extends \WP_UnitTestCase {
     public function setUp(): void {
@@ -3734,7 +3734,7 @@ class RateLimiterTest extends \WP_UnitTestCase {
 - [ ] **Step 2: Run and verify fail**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter RateLimiterTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter RateLimiterTest
 ```
 
 Expected: FAIL.
@@ -3745,7 +3745,7 @@ Expected: FAIL.
 <?php
 declare(strict_types=1);
 
-namespace StarterAi\Usage;
+namespace PedimentAi\Usage;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
@@ -3776,7 +3776,7 @@ final class RateLimiter {
     }
 
     private function key( int $user_id, string $kind ): string {
-        return "starter_ai_rl_{$user_id}_{$kind}";
+        return "pediment_ai_rl_{$user_id}_{$kind}";
     }
 }
 ```
@@ -3786,9 +3786,9 @@ final class RateLimiter {
 Modify each of `ComposeController::handle()`, `EditController::handle()`, `RefineController::handle()` to start with:
 
 ```php
-$limits = (array) get_option( 'starter_ai_rate_limits', \StarterAi\Usage\RateLimiter::DEFAULTS );
-if ( ! ( new \StarterAi\Usage\RateLimiter( $limits ) )->consume( get_current_user_id(), '<kind>' ) ) {
-    return new \WP_Error( 'starter_ai_rate_limited', __( 'Rate limit reached. Try again later.', 'starter-ai' ), [ 'status' => 429 ] );
+$limits = (array) get_option( 'pediment_ai_rate_limits', \PedimentAi\Usage\RateLimiter::DEFAULTS );
+if ( ! ( new \PedimentAi\Usage\RateLimiter( $limits ) )->consume( get_current_user_id(), '<kind>' ) ) {
+    return new \WP_Error( 'pediment_ai_rate_limited', __( 'Rate limit reached. Try again later.', 'pediment-ai' ), [ 'status' => 429 ] );
 }
 ```
 
@@ -3797,7 +3797,7 @@ Substitute `<kind>` with `'compose'`, `'edit'`, or `'refine'` in each controller
 - [ ] **Step 5: Run the tests (including controllers)**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter "RateLimiterTest|ComposeControllerTest|EditControllerTest|RefineControllerTest"
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter "RateLimiterTest|ComposeControllerTest|EditControllerTest|RefineControllerTest"
 ```
 
 Expected: all pass; controllers still pass because default limits are well above 1 call.
@@ -3827,14 +3827,14 @@ git commit -m "feat(usage): per-user RateLimiter enforced on all REST endpoints"
 
 ```php
 <?php
-namespace StarterAi\Tests\Settings;
+namespace PedimentAi\Tests\Settings;
 
-use StarterAi\Settings\OptionsStore;
+use PedimentAi\Settings\OptionsStore;
 
 class OptionsStoreTest extends \WP_UnitTestCase {
     public function setUp(): void {
         parent::setUp();
-        delete_option( 'starter_ai_settings' );
+        delete_option( 'pediment_ai_settings' );
     }
 
     public function test_set_and_get_api_key_round_trips(): void {
@@ -3846,7 +3846,7 @@ class OptionsStoreTest extends \WP_UnitTestCase {
     public function test_stored_key_is_not_plaintext_in_option(): void {
         $store = new OptionsStore();
         $store->setApiKey( 'sk-ant-test123' );
-        $raw = get_option( 'starter_ai_settings' );
+        $raw = get_option( 'pediment_ai_settings' );
         $this->assertIsString( $raw['api_key_encrypted'] ?? null );
         $this->assertNotSame( 'sk-ant-test123', $raw['api_key_encrypted'] );
     }
@@ -3868,7 +3868,7 @@ class OptionsStoreTest extends \WP_UnitTestCase {
 - [ ] **Step 2: Run and verify fail**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter OptionsStoreTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter OptionsStoreTest
 ```
 
 Expected: FAIL.
@@ -3879,14 +3879,14 @@ Expected: FAIL.
 <?php
 declare(strict_types=1);
 
-namespace StarterAi\Settings;
+namespace PedimentAi\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
 final class OptionsStore {
-    public const OPTION = 'starter_ai_settings';
+    public const OPTION = 'pediment_ai_settings';
 
     public function getApiKey(): string {
         if ( defined( 'ANTHROPIC_API_KEY' ) && '' !== (string) ANTHROPIC_API_KEY ) {
@@ -3945,7 +3945,7 @@ final class OptionsStore {
     }
 
     private function cipherKey(): string {
-        return substr( hash( 'sha256', wp_salt( 'auth' ) . '|starter-ai', true ), 0, SODIUM_CRYPTO_SECRETBOX_KEYBYTES );
+        return substr( hash( 'sha256', wp_salt( 'auth' ) . '|pediment-ai', true ), 0, SODIUM_CRYPTO_SECRETBOX_KEYBYTES );
     }
 }
 ```
@@ -3956,17 +3956,17 @@ final class OptionsStore {
 <?php
 declare(strict_types=1);
 
-namespace StarterAi\Settings;
+namespace PedimentAi\Settings;
 
-use StarterAi\Usage\RateLimiter;
-use StarterAi\Usage\Tracker;
+use PedimentAi\Usage\RateLimiter;
+use PedimentAi\Usage\Tracker;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
 final class Page {
-    public const SLUG = 'starter-ai';
+    public const SLUG = 'pediment-ai';
 
     public function register(): void {
         add_action( 'admin_menu', [ $this, 'addMenu' ] );
@@ -3975,8 +3975,8 @@ final class Page {
 
     public function addMenu(): void {
         add_options_page(
-            __( 'Starter AI', 'starter-ai' ),
-            __( 'Starter AI', 'starter-ai' ),
+            __( 'Pediment AI', 'pediment-ai' ),
+            __( 'Pediment AI', 'pediment-ai' ),
             'manage_options',
             self::SLUG,
             [ $this, 'render' ]
@@ -3984,8 +3984,8 @@ final class Page {
     }
 
     public function registerSettings(): void {
-        register_setting( 'starter_ai_group', OptionsStore::OPTION, [ 'type' => 'array', 'sanitize_callback' => [ $this, 'sanitize' ] ] );
-        register_setting( 'starter_ai_group', 'starter_ai_rate_limits', [ 'type' => 'array', 'sanitize_callback' => [ $this, 'sanitizeLimits' ] ] );
+        register_setting( 'pediment_ai_group', OptionsStore::OPTION, [ 'type' => 'array', 'sanitize_callback' => [ $this, 'sanitize' ] ] );
+        register_setting( 'pediment_ai_group', 'pediment_ai_rate_limits', [ 'type' => 'array', 'sanitize_callback' => [ $this, 'sanitizeLimits' ] ] );
     }
 
     public function sanitize( $input ): array {
@@ -4015,23 +4015,23 @@ final class Page {
     public function render(): void {
         if ( ! current_user_can( 'manage_options' ) ) { return; }
         $store   = new OptionsStore();
-        $limits  = (array) get_option( 'starter_ai_rate_limits', RateLimiter::DEFAULTS );
+        $limits  = (array) get_option( 'pediment_ai_rate_limits', RateLimiter::DEFAULTS );
         $usage   = ( new Tracker() )->totalsThisMonth();
         $env_key = defined( 'ANTHROPIC_API_KEY' );
         ?>
         <div class="wrap">
-            <h1><?php esc_html_e( 'Starter AI Settings', 'starter-ai' ); ?></h1>
+            <h1><?php esc_html_e( 'Pediment AI Settings', 'pediment-ai' ); ?></h1>
             <form method="post" action="options.php">
-                <?php settings_fields( 'starter_ai_group' ); ?>
+                <?php settings_fields( 'pediment_ai_group' ); ?>
 
-                <h2><?php esc_html_e( 'API key', 'starter-ai' ); ?></h2>
+                <h2><?php esc_html_e( 'API key', 'pediment-ai' ); ?></h2>
                 <?php if ( $env_key ) : ?>
-                    <p><?php esc_html_e( 'Loaded from ANTHROPIC_API_KEY env constant. Field below is ignored.', 'starter-ai' ); ?></p>
+                    <p><?php esc_html_e( 'Loaded from ANTHROPIC_API_KEY env constant. Field below is ignored.', 'pediment-ai' ); ?></p>
                 <?php endif; ?>
-                <input type="password" name="<?php echo esc_attr( OptionsStore::OPTION ); ?>[api_key]" value="" autocomplete="off" placeholder="<?php esc_attr_e( 'Set or update Anthropic key', 'starter-ai' ); ?>" class="regular-text" />
-                <p class="description"><?php esc_html_e( 'Stored encrypted using wp_salt-derived key.', 'starter-ai' ); ?></p>
+                <input type="password" name="<?php echo esc_attr( OptionsStore::OPTION ); ?>[api_key]" value="" autocomplete="off" placeholder="<?php esc_attr_e( 'Set or update Anthropic key', 'pediment-ai' ); ?>" class="regular-text" />
+                <p class="description"><?php esc_html_e( 'Stored encrypted using wp_salt-derived key.', 'pediment-ai' ); ?></p>
 
-                <h2><?php esc_html_e( 'Models', 'starter-ai' ); ?></h2>
+                <h2><?php esc_html_e( 'Models', 'pediment-ai' ); ?></h2>
                 <p>
                     <label>Compose / Edit
                         <input type="text" name="<?php echo esc_attr( OptionsStore::OPTION ); ?>[model_compose]" value="<?php echo esc_attr( (string) $store->get( 'model_compose', 'claude-sonnet-4-6' ) ); ?>" class="regular-text" />
@@ -4043,21 +4043,21 @@ final class Page {
                     </label>
                 </p>
 
-                <h2><?php esc_html_e( 'Mock mode', 'starter-ai' ); ?></h2>
+                <h2><?php esc_html_e( 'Mock mode', 'pediment-ai' ); ?></h2>
                 <label>
                     <input type="checkbox" name="<?php echo esc_attr( OptionsStore::OPTION ); ?>[mock_mode]" value="1" <?php checked( (bool) $store->get( 'mock_mode', false ) ); ?> />
-                    <?php esc_html_e( 'Return fixture responses instead of calling Anthropic. For development.', 'starter-ai' ); ?>
+                    <?php esc_html_e( 'Return fixture responses instead of calling Anthropic. For development.', 'pediment-ai' ); ?>
                 </label>
 
-                <h2><?php esc_html_e( 'Rate limits (per user per hour)', 'starter-ai' ); ?></h2>
+                <h2><?php esc_html_e( 'Rate limits (per user per hour)', 'pediment-ai' ); ?></h2>
                 <?php foreach ( [ 'compose', 'edit', 'refine' ] as $k ) : ?>
-                    <p><label><?php echo esc_html( ucfirst( $k ) ); ?>: <input type="number" min="1" name="starter_ai_rate_limits[<?php echo esc_attr( $k ); ?>]" value="<?php echo esc_attr( (string) ( $limits[ $k ] ?? RateLimiter::DEFAULTS[ $k ] ) ); ?>" /></label></p>
+                    <p><label><?php echo esc_html( ucfirst( $k ) ); ?>: <input type="number" min="1" name="pediment_ai_rate_limits[<?php echo esc_attr( $k ); ?>]" value="<?php echo esc_attr( (string) ( $limits[ $k ] ?? RateLimiter::DEFAULTS[ $k ] ) ); ?>" /></label></p>
                 <?php endforeach; ?>
 
                 <?php submit_button(); ?>
             </form>
 
-            <h2><?php esc_html_e( 'Usage this month', 'starter-ai' ); ?></h2>
+            <h2><?php esc_html_e( 'Usage this month', 'pediment-ai' ); ?></h2>
             <ul>
                 <li>Input tokens: <?php echo esc_html( number_format_i18n( $usage['input_tokens'] ) ); ?></li>
                 <li>Output tokens: <?php echo esc_html( number_format_i18n( $usage['output_tokens'] ) ); ?></li>
@@ -4076,18 +4076,18 @@ final class Page {
 Append to `src/Bootstrap.php`'s `register()`:
 
 ```php
-( new \StarterAi\Settings\Page() )->register();
+( new \PedimentAi\Settings\Page() )->register();
 
-add_filter( 'starter_ai_model_compose', static function ( $default ) {
-    $val = ( new \StarterAi\Settings\OptionsStore() )->get( 'model_compose', '' );
+add_filter( 'pediment_ai_model_compose', static function ( $default ) {
+    $val = ( new \PedimentAi\Settings\OptionsStore() )->get( 'model_compose', '' );
     return '' !== $val ? $val : $default;
 } );
-add_filter( 'starter_ai_model_edit', static function ( $default ) {
-    $val = ( new \StarterAi\Settings\OptionsStore() )->get( 'model_compose', '' );
+add_filter( 'pediment_ai_model_edit', static function ( $default ) {
+    $val = ( new \PedimentAi\Settings\OptionsStore() )->get( 'model_compose', '' );
     return '' !== $val ? $val : $default;
 } );
-add_filter( 'starter_ai_model_refine', static function ( $default ) {
-    $val = ( new \StarterAi\Settings\OptionsStore() )->get( 'model_refine', '' );
+add_filter( 'pediment_ai_model_refine', static function ( $default ) {
+    $val = ( new \PedimentAi\Settings\OptionsStore() )->get( 'model_refine', '' );
     return '' !== $val ? $val : $default;
 } );
 ```
@@ -4095,11 +4095,11 @@ add_filter( 'starter_ai_model_refine', static function ( $default ) {
 Also update the mock-mode check in the existing provider filter:
 
 ```php
-add_filter( 'starter_ai_provider', static function ( $default ) {
-    $mock_const   = defined( 'STARTER_AI_MOCK' ) && STARTER_AI_MOCK;
-    $mock_setting = (bool) ( new \StarterAi\Settings\OptionsStore() )->get( 'mock_mode', false );
+add_filter( 'pediment_ai_provider', static function ( $default ) {
+    $mock_const   = defined( 'PEDIMENT_AI_MOCK' ) && PEDIMENT_AI_MOCK;
+    $mock_setting = (bool) ( new \PedimentAi\Settings\OptionsStore() )->get( 'mock_mode', false );
     if ( $mock_const || $mock_setting ) {
-        return new \StarterAi\Mock\MockProvider( STARTER_AI_PLUGIN_DIR . '/src/Mock/fixtures' );
+        return new \PedimentAi\Mock\MockProvider( PEDIMENT_AI_PLUGIN_DIR . '/src/Mock/fixtures' );
     }
     return $default;
 } );
@@ -4108,7 +4108,7 @@ add_filter( 'starter_ai_provider', static function ( $default ) {
 - [ ] **Step 6: Run the tests**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter OptionsStoreTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter OptionsStoreTest
 ```
 
 Expected: 4 tests pass.
@@ -4116,7 +4116,7 @@ Expected: 4 tests pass.
 - [ ] **Step 7: Manual smoke test**
 
 ```bash
-open http://localhost:8888/wp-admin/options-general.php?page=starter-ai
+open http://localhost:8888/wp-admin/options-general.php?page=pediment-ai
 ```
 
 Expected: settings page renders; saving a key persists; toggling mock mode persists.
@@ -4147,7 +4147,7 @@ import { registerPlugin } from '@wordpress/plugins';
 import DocumentPanel from './DocumentPanel';
 import './styles.scss';
 
-registerPlugin('starter-ai-document-panel', {
+registerPlugin('pediment-ai-document-panel', {
   render: DocumentPanel,
 });
 ```
@@ -4169,12 +4169,12 @@ export default function DocumentPanel() {
 
   return (
     <>
-      <PluginDocumentSettingPanel name="starter-ai" title="AI" className="starter-ai__panel">
+      <PluginDocumentSettingPanel name="pediment-ai" title="AI" className="pediment-ai__panel">
         <Button variant="primary"   onClick={() => setMode('compose')} style={{ marginRight: 8 }}>
-          {__('Compose with AI', 'starter-ai')}
+          {__('Compose with AI', 'pediment-ai')}
         </Button>
         <Button variant="secondary" onClick={() => setMode('edit')}>
-          {__('Edit with AI', 'starter-ai')}
+          {__('Edit with AI', 'pediment-ai')}
         </Button>
       </PluginDocumentSettingPanel>
 
@@ -4188,7 +4188,7 @@ export default function DocumentPanel() {
 - [ ] **Step 3: Write editor/styles.scss**
 
 ```scss
-.starter-ai {
+.pediment-ai {
   &__panel    { /* container */ }
   &__pills    { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   &__pill     { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: #f0f0f1; border-radius: 12px; font-size: 11px; color: #1d2327; }
@@ -4203,21 +4203,21 @@ Append to `src/Bootstrap.php`'s `register()`:
 
 ```php
 add_action( 'enqueue_block_editor_assets', static function () {
-    $asset_path = STARTER_AI_PLUGIN_DIR . '/build/index.asset.php';
+    $asset_path = PEDIMENT_AI_PLUGIN_DIR . '/build/index.asset.php';
     if ( ! file_exists( $asset_path ) ) { return; }
     $asset = include $asset_path;
     wp_enqueue_script(
-        'starter-ai-editor',
-        STARTER_AI_PLUGIN_URL . 'build/index.js',
+        'pediment-ai-editor',
+        PEDIMENT_AI_PLUGIN_URL . 'build/index.js',
         $asset['dependencies'] ?? [],
-        $asset['version']      ?? STARTER_AI_VERSION,
+        $asset['version']      ?? PEDIMENT_AI_VERSION,
         true
     );
     wp_enqueue_style(
-        'starter-ai-editor',
-        STARTER_AI_PLUGIN_URL . 'build/index.css',
+        'pediment-ai-editor',
+        PEDIMENT_AI_PLUGIN_URL . 'build/index.css',
         [],
-        $asset['version']      ?? STARTER_AI_VERSION
+        $asset['version']      ?? PEDIMENT_AI_VERSION
     );
 } );
 ```
@@ -4262,16 +4262,16 @@ export type JobStatus = {
 export type RefineResponse = { attributes: Record<string, any>; innerBlocks: any[] };
 
 export async function postCompose(body: { prompt: string; page_type: string; tone: string }) {
-  return apiFetch<JobResponse>({ path: '/starter-ai/v1/compose', method: 'POST', data: body });
+  return apiFetch<JobResponse>({ path: '/pediment-ai/v1/compose', method: 'POST', data: body });
 }
 export async function postEdit(body: { instruction: string; tree: any[] }) {
-  return apiFetch<JobResponse>({ path: '/starter-ai/v1/edit', method: 'POST', data: body });
+  return apiFetch<JobResponse>({ path: '/pediment-ai/v1/edit', method: 'POST', data: body });
 }
 export async function postRefine(body: { blockName: string; attributes: any; innerBlocks: any[]; instruction: string }) {
-  return apiFetch<RefineResponse>({ path: '/starter-ai/v1/refine', method: 'POST', data: body });
+  return apiFetch<RefineResponse>({ path: '/pediment-ai/v1/refine', method: 'POST', data: body });
 }
 export async function getJob(id: number) {
-  return apiFetch<JobStatus>({ path: `/starter-ai/v1/jobs/${id}`, method: 'GET' });
+  return apiFetch<JobStatus>({ path: `/pediment-ai/v1/jobs/${id}`, method: 'GET' });
 }
 ```
 
@@ -4323,18 +4323,18 @@ export default function ComposeModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <Modal title={__('Compose with AI', 'starter-ai')} onRequestClose={onClose} className="starter-ai__modal">
+    <Modal title={__('Compose with AI', 'pediment-ai')} onRequestClose={onClose} className="pediment-ai__modal">
       {jobId === null && (
         <>
           <TextareaControl
-            label={__('Prompt', 'starter-ai')}
+            label={__('Prompt', 'pediment-ai')}
             value={prompt}
             onChange={setPrompt}
             rows={5}
-            placeholder={__('Describe the page you want…', 'starter-ai')}
+            placeholder={__('Describe the page you want…', 'pediment-ai')}
           />
           <SelectControl
-            label={__('Page type', 'starter-ai')}
+            label={__('Page type', 'pediment-ai')}
             value={pageType}
             options={[
               { label: 'Landing',  value: 'landing' },
@@ -4346,13 +4346,13 @@ export default function ComposeModal({ onClose }: { onClose: () => void }) {
             onChange={setPageType}
           />
           <TextareaControl
-            label={__('Tone (optional)', 'starter-ai')}
+            label={__('Tone (optional)', 'pediment-ai')}
             value={tone}
             onChange={setTone}
             rows={2}
           />
           <RadioControl
-            label={__('What to do with the result', 'starter-ai')}
+            label={__('What to do with the result', 'pediment-ai')}
             selected={target}
             options={[
               { label: 'Replace current page',    value: 'replace' },
@@ -4360,21 +4360,21 @@ export default function ComposeModal({ onClose }: { onClose: () => void }) {
             ]}
             onChange={(v) => setTarget(v as 'replace' | 'insert')}
           />
-          {submitErr && <p className="starter-ai__error">{submitErr}</p>}
+          {submitErr && <p className="pediment-ai__error">{submitErr}</p>}
           <Button variant="primary" onClick={submit} disabled={!prompt.trim()}>
-            {__('Compose', 'starter-ai')}
+            {__('Compose', 'pediment-ai')}
           </Button>
         </>
       )}
 
       {jobId !== null && status !== 'complete' && status !== 'error' && (
-        <div className="starter-ai__progress">
+        <div className="pediment-ai__progress">
           <Spinner />
           <span>{progressNote ?? 'Working…'}</span>
         </div>
       )}
       {urls.length > 0 && <SourcePills urls={urls} />}
-      {status === 'error' && <p className="starter-ai__error">{error ?? __('Compose failed.', 'starter-ai')}</p>}
+      {status === 'error' && <p className="pediment-ai__error">{error ?? __('Compose failed.', 'pediment-ai')}</p>}
     </Modal>
   );
 }
@@ -4431,32 +4431,32 @@ export default function EditModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <Modal title={__('Edit with AI', 'starter-ai')} onRequestClose={onClose}>
+    <Modal title={__('Edit with AI', 'pediment-ai')} onRequestClose={onClose}>
       <Notice status="warning" isDismissible={false}>
-        {__('This will replace your current page. Use Undo (Cmd/Ctrl+Z) to revert.', 'starter-ai')}
+        {__('This will replace your current page. Use Undo (Cmd/Ctrl+Z) to revert.', 'pediment-ai')}
       </Notice>
 
       {jobId === null && (
         <>
           <TextareaControl
-            label={__('Instruction', 'starter-ai')}
+            label={__('Instruction', 'pediment-ai')}
             value={instruction}
             onChange={setInstruction}
             rows={4}
-            placeholder={__('Add an FAQ section, shorten the hero, change CTA to…', 'starter-ai')}
+            placeholder={__('Add an FAQ section, shorten the hero, change CTA to…', 'pediment-ai')}
           />
-          {submitErr && <p className="starter-ai__error">{submitErr}</p>}
+          {submitErr && <p className="pediment-ai__error">{submitErr}</p>}
           <Button variant="primary" onClick={submit} disabled={!instruction.trim()}>
-            {__('Edit', 'starter-ai')}
+            {__('Edit', 'pediment-ai')}
           </Button>
         </>
       )}
 
       {jobId !== null && status !== 'complete' && status !== 'error' && (
-        <div className="starter-ai__progress"><Spinner /><span>{progressNote ?? 'Working…'}</span></div>
+        <div className="pediment-ai__progress"><Spinner /><span>{progressNote ?? 'Working…'}</span></div>
       )}
       {urls.length > 0 && <SourcePills urls={urls} />}
-      {status === 'error' && <p className="starter-ai__error">{error ?? __('Edit failed.', 'starter-ai')}</p>}
+      {status === 'error' && <p className="pediment-ai__error">{error ?? __('Edit failed.', 'pediment-ai')}</p>}
     </Modal>
   );
 }
@@ -4479,7 +4479,7 @@ function serializeOne(node: any): string {
 }
 ```
 
-- [ ] **Step 4: Build and smoke test (uses Mock fixtures since STARTER_AI_MOCK=true)**
+- [ ] **Step 4: Build and smoke test (uses Mock fixtures since PEDIMENT_AI_MOCK=true)**
 
 ```bash
 npm run build
@@ -4604,15 +4604,15 @@ import { __ } from '@wordpress/i18n';
 import { postRefine } from './hooks/useApiClient';
 
 const QUICK_ACTIONS: Record<string, { label: string; instruction: string }[]> = {
-  'starter/hero': [
+  'pediment/hero': [
     { label: 'Punchier',         instruction: 'Make it punchier and more benefit-led.' },
     { label: 'Different angle',  instruction: 'Try a completely different angle.' },
   ],
-  'starter/cta': [
+  'pediment/cta': [
     { label: 'More urgent',      instruction: 'Make it more urgent.' },
     { label: 'Shorter',          instruction: 'Make it shorter.' },
   ],
-  'starter/faq-item': [
+  'pediment/faq-item': [
     { label: 'Tighter answer',   instruction: 'Make the answer tighter.' },
   ],
 };
@@ -4652,12 +4652,12 @@ export default function RefineActions({ clientId, name, attributes, innerBlocks 
           {qa.label}
         </Button>
       ))}
-      <TextareaControl label={__('Custom instruction', 'starter-ai')} value={custom} onChange={setCustom} rows={2} />
+      <TextareaControl label={__('Custom instruction', 'pediment-ai')} value={custom} onChange={setCustom} rows={2} />
       <Button variant="primary" onClick={() => trigger(custom)} disabled={loading || !custom.trim()}>
-        {__('Refine', 'starter-ai')}
+        {__('Refine', 'pediment-ai')}
       </Button>
       {loading && <Spinner />}
-      {err && <p className="starter-ai__error">{err}</p>}
+      {err && <p className="pediment-ai__error">{err}</p>}
     </div>
   );
 }
@@ -4692,7 +4692,7 @@ export function registerRefinePanel() {
       <>
         <BlockEdit {...props} />
         <InspectorControls>
-          <PanelBody title={__('AI refine', 'starter-ai')} initialOpen={false}>
+          <PanelBody title={__('AI refine', 'pediment-ai')} initialOpen={false}>
             <RefineActions
               clientId={props.clientId}
               name={props.name}
@@ -4703,9 +4703,9 @@ export function registerRefinePanel() {
         </InspectorControls>
       </>
     );
-  }, 'withStarterAiRefine');
+  }, 'withPedimentAiRefine');
 
-  addFilter('editor.BlockEdit', 'starter-ai/refine-panel', withRefine);
+  addFilter('editor.BlockEdit', 'pediment-ai/refine-panel', withRefine);
 }
 ```
 
@@ -4721,7 +4721,7 @@ import './styles.scss';
 
 registerRefinePanel();
 
-registerPlugin('starter-ai-document-panel', {
+registerPlugin('pediment-ai-document-panel', {
   render: DocumentPanel,
 });
 ```
@@ -4755,12 +4755,12 @@ import { __ } from '@wordpress/i18n';
 export default function SourcePills({ urls }: { urls: string[] }) {
   if (!urls.length) { return null; }
   return (
-    <div className="starter-ai__pills">
+    <div className="pediment-ai__pills">
       <span style={{ marginRight: 4, fontSize: 11, color: '#646970' }}>
-        {__('Sources:', 'starter-ai')}
+        {__('Sources:', 'pediment-ai')}
       </span>
       {urls.map((url, i) => (
-        <a key={`${url}-${i}`} className="starter-ai__pill" href={url} target="_blank" rel="noreferrer">
+        <a key={`${url}-${i}`} className="pediment-ai__pill" href={url} target="_blank" rel="noreferrer">
           {hostOf(url)}
         </a>
       ))}
@@ -4793,7 +4793,7 @@ git commit -m "feat(editor): SourcePills component rendering web_fetch URLs"
 
 ## Phase 9: WP-CLI utility
 
-### Task 31: `wp starter-ai dump-schema`
+### Task 31: `wp pediment-ai dump-schema`
 
 **Files:**
 - Create: `wp-cli/DumpSchemaCommand.php`
@@ -4804,29 +4804,29 @@ git commit -m "feat(editor): SourcePills component rendering web_fetch URLs"
 
 ```php
 <?php
-namespace StarterAi\Tests\Cli;
+namespace PedimentAi\Tests\Cli;
 
-use StarterAi\Cli\DumpSchemaCommand;
+use PedimentAi\Cli\DumpSchemaCommand;
 
 class DumpSchemaCommandTest extends \WP_UnitTestCase {
     public function setUp(): void {
         parent::setUp();
-        \StarterAi\Anthropic\SchemaBuilder::invalidate();
-        register_block_type( 'starter/test', [ 'attributes' => [ 'x' => [ 'type' => 'string' ] ], 'description' => 'T' ] );
+        \PedimentAi\Anthropic\SchemaBuilder::invalidate();
+        register_block_type( 'pediment/test', [ 'attributes' => [ 'x' => [ 'type' => 'string' ] ], 'description' => 'T' ] );
     }
 
     public function tearDown(): void {
-        unregister_block_type( 'starter/test' );
+        unregister_block_type( 'pediment/test' );
         parent::tearDown();
     }
 
     public function test_writes_schema_to_specified_path(): void {
-        $path = sys_get_temp_dir() . '/starter-ai-schema-' . uniqid() . '.json';
+        $path = sys_get_temp_dir() . '/pediment-ai-schema-' . uniqid() . '.json';
         ( new DumpSchemaCommand() )->__invoke( [], [ 'output' => $path ] );
 
         $this->assertFileExists( $path );
         $data = json_decode( (string) file_get_contents( $path ), true );
-        $this->assertArrayHasKey( 'starter/test', $data['blocks'] );
+        $this->assertArrayHasKey( 'pediment/test', $data['blocks'] );
         unlink( $path );
     }
 }
@@ -4835,7 +4835,7 @@ class DumpSchemaCommandTest extends \WP_UnitTestCase {
 - [ ] **Step 2: Run and verify fail**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter DumpSchemaCommandTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter DumpSchemaCommandTest
 ```
 
 Expected: FAIL.
@@ -4846,9 +4846,9 @@ Expected: FAIL.
 <?php
 declare(strict_types=1);
 
-namespace StarterAi\Cli;
+namespace PedimentAi\Cli;
 
-use StarterAi\Anthropic\SchemaBuilder;
+use PedimentAi\Anthropic\SchemaBuilder;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
@@ -4869,7 +4869,7 @@ final class DumpSchemaCommand {
         $schema = ( new SchemaBuilder() )->build( true );
         $path   = isset( $assoc_args['output'] )
             ? (string) $assoc_args['output']
-            : STARTER_AI_PLUGIN_DIR . '/schema/blocks.json';
+            : PEDIMENT_AI_PLUGIN_DIR . '/schema/blocks.json';
 
         if ( ! is_dir( dirname( $path ) ) ) {
             mkdir( dirname( $path ), 0777, true );
@@ -4890,14 +4890,14 @@ Append before the `add_action( 'plugins_loaded', ... )`:
 ```php
 if ( defined( 'WP_CLI' ) && WP_CLI ) {
     require_once __DIR__ . '/wp-cli/DumpSchemaCommand.php';
-    \WP_CLI::add_command( 'starter-ai dump-schema', \StarterAi\Cli\DumpSchemaCommand::class );
+    \WP_CLI::add_command( 'pediment-ai dump-schema', \PedimentAi\Cli\DumpSchemaCommand::class );
 }
 ```
 
 - [ ] **Step 5: Run the tests**
 
 ```bash
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit --filter DumpSchemaCommandTest
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit --filter DumpSchemaCommandTest
 ```
 
 Expected: 1 test passes.
@@ -4905,7 +4905,7 @@ Expected: 1 test passes.
 - [ ] **Step 6: Smoke test the CLI**
 
 ```bash
-npx wp-env run cli --env-cwd=wp-content/plugins/wp-starter-ai "wp starter-ai dump-schema --output=/tmp/schema.json"
+npx wp-env run cli --env-cwd=wp-content/plugins/pediment-ai "wp pediment-ai dump-schema --output=/tmp/schema.json"
 cat /tmp/schema.json | head -20
 ```
 
@@ -4915,7 +4915,7 @@ Expected: prints JSON with `blocks` object.
 
 ```bash
 git add wp-cli/DumpSchemaCommand.php plugin.php tests/phpunit/Cli/DumpSchemaCommandTest.php
-git commit -m "feat(cli): wp starter-ai dump-schema writes runtime schema to JSON"
+git commit -m "feat(cli): wp pediment-ai dump-schema writes runtime schema to JSON"
 ```
 
 ---
@@ -4930,7 +4930,7 @@ git commit -m "feat(cli): wp starter-ai dump-schema writes runtime schema to JSO
 - Create: `tests/e2e/edit.spec.ts`
 - Create: `tests/e2e/refine.spec.ts`
 
-> **Mock mode:** `.wp-env.json` sets `STARTER_AI_MOCK=true`, so all flows return fixtures deterministically. No Anthropic key needed.
+> **Mock mode:** `.wp-env.json` sets `PEDIMENT_AI_MOCK=true`, so all flows return fixtures deterministically. No Anthropic key needed.
 
 - [ ] **Step 1: Write tests/e2e/utils.ts**
 
@@ -4972,7 +4972,7 @@ test('compose with AI inserts blocks from mock fixture', async ({ page }) => {
   await page.getByRole('textbox', { name: /prompt/i }).fill('A landing page for an agency');
   await page.getByRole('button', { name: /^compose$/i }).click();
 
-  await expect(page.locator('.wp-block-starter-hero')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.wp-block-pediment-hero')).toBeVisible({ timeout: 15_000 });
 });
 ```
 
@@ -4995,7 +4995,7 @@ test('edit with AI replaces page content', async ({ page }) => {
   await page.getByRole('textbox', { name: /instruction/i }).fill('add an faq');
   await page.getByRole('button', { name: /^edit$/i }).click();
 
-  await expect(page.locator('.wp-block-starter-faq')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.wp-block-pediment-faq')).toBeVisible({ timeout: 15_000 });
 });
 ```
 
@@ -5014,21 +5014,21 @@ test('refine updates a single block', async ({ page }) => {
   await page.keyboard.press('Enter');
 
   // Select the hero block.
-  await page.locator('.wp-block-starter-hero').first().click();
+  await page.locator('.wp-block-pediment-hero').first().click();
 
   // Open the AI refine panel.
   await page.getByRole('button', { name: /^ai refine$/i }).click();
   await page.getByRole('textbox', { name: /custom instruction/i }).fill('Make it punchier');
   await page.getByRole('button', { name: /^refine$/i }).click();
 
-  await expect(page.locator('.wp-block-starter-hero h1')).toContainText(/punchier/i, { timeout: 10_000 });
+  await expect(page.locator('.wp-block-pediment-hero h1')).toContainText(/punchier/i, { timeout: 10_000 });
 });
 ```
 
 - [ ] **Step 5: Build, run E2E**
 
 ```bash
-( cd ../wp-starter-theme && npm run build )
+( cd ../pediment && npm run build )
 npx wp-env start
 npm run build
 npm run e2e
@@ -5057,23 +5057,23 @@ git commit -m "test(e2e): compose, edit, refine flows against mock fixtures"
 - [ ] **Step 1: Replace README.md**
 
 ```markdown
-# Starter AI Plugin
+# Pediment AI Plugin
 
-WordPress plugin that adds AI-powered authoring to the [wp-starter-theme](https://github.com/bergert/wp-starter-theme): Compose a page from a prompt, Edit an existing page, Refine a single block.
+WordPress plugin that adds AI-powered authoring to the [pediment](https://github.com/bergert/pediment): Compose a page from a prompt, Edit an existing page, Refine a single block.
 
 ## Requirements
 
 - WordPress 6.4+, PHP 8.1+
-- `wp-starter-theme` (Plan A) installed and active
+- `pediment` (Plan A) installed and active
 - Anthropic API key
 
 ## Install (in a Bedrock client repo)
 
 ```bash
-composer require bergert/wp-starter-ai
+composer require bergert/pediment-ai
 ```
 
-Set `ANTHROPIC_API_KEY` in `.env`. The plugin reads from the env constant when set; otherwise it falls back to the encrypted key in Settings → Starter AI.
+Set `ANTHROPIC_API_KEY` in `.env`. The plugin reads from the env constant when set; otherwise it falls back to the encrypted key in Settings → Pediment AI.
 
 ## Three flows
 
@@ -5081,7 +5081,7 @@ Set `ANTHROPIC_API_KEY` in `.env`. The plugin reads from the env constant when s
 - **Edit.** Document sidebar → "Edit with AI" → instruction → page content replaced (use Undo to revert).
 - **Refine.** Select any starter block → Inspector → "AI refine" → quick actions or custom instruction → attributes update.
 
-Compose and Edit run as background jobs (Action Scheduler); the editor polls `/wp-json/starter-ai/v1/jobs/{id}` every 750ms. Refine is synchronous.
+Compose and Edit run as background jobs (Action Scheduler); the editor polls `/wp-json/pediment-ai/v1/jobs/{id}` every 750ms. Refine is synchronous.
 
 ## Web fetch
 
@@ -5107,12 +5107,12 @@ Per-user, per-hour defaults (configurable in Settings):
 ```bash
 composer install
 npm install
-( cd ../wp-starter-theme && npm install && npm run build )
+( cd ../pediment && npm install && npm run build )
 npm run build
 npm run env:start    # http://localhost:8888 (admin/password)
 ```
 
-Mock mode is on by default in `.wp-env.json` (`STARTER_AI_MOCK=true`), so the plugin returns fixture responses instead of calling Anthropic. Toggle off in plugin settings to test against real Anthropic.
+Mock mode is on by default in `.wp-env.json` (`PEDIMENT_AI_MOCK=true`), so the plugin returns fixture responses instead of calling Anthropic. Toggle off in plugin settings to test against real Anthropic.
 
 See [docs/prompts.md](docs/prompts.md) for prompt tuning and [docs/privacy.md](docs/privacy.md) for data-handling disclosures clients should include in their privacy policies.
 ```
@@ -5122,7 +5122,7 @@ See [docs/prompts.md](docs/prompts.md) for prompt tuning and [docs/privacy.md](d
 ```markdown
 # Tuning prompts
 
-The system prompt sent on Compose/Edit is assembled in `Jobs/ComposeJob::systemBlock()`. To override per-deploy, hook the `starter_ai_system_prompt` filter (added in v0.2 — for v0.1 modify ComposeJob directly).
+The system prompt sent on Compose/Edit is assembled in `Jobs/ComposeJob::systemBlock()`. To override per-deploy, hook the `pediment_ai_system_prompt` filter (added in v0.2 — for v0.1 modify ComposeJob directly).
 
 ## What goes in
 
@@ -5168,7 +5168,7 @@ No customer data, contact-form submissions, user accounts, or commerce data are 
 
 ## Disable
 
-Toggle "Mock mode" on in Settings → Starter AI, or unset `ANTHROPIC_API_KEY` and clear the key in settings. The plugin's UI remains visible but cannot reach Anthropic.
+Toggle "Mock mode" on in Settings → Pediment AI, or unset `ANTHROPIC_API_KEY` and clear the key in settings. The plugin's UI remains visible but cannot reach Anthropic.
 ```
 
 - [ ] **Step 4: Commit**
@@ -5189,13 +5189,13 @@ git commit -m "docs: README + prompt-tuning + GDPR disclosure"
 - [ ] **Step 1: Verify the full matrix passes locally**
 
 ```bash
-( cd ../wp-starter-theme && npm run build )
+( cd ../pediment && npm run build )
 npx wp-env start
 composer install
 npm ci
 npm run build
 composer lint
-npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai phpunit
+npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai phpunit
 npm run e2e
 ```
 
@@ -5208,31 +5208,31 @@ In `plugin.php`, ensure `Version: 0.1.0`. In `package.json`, ensure `"version": 
 - [ ] **Step 3: Push and tag**
 
 ```bash
-gh repo create bergert/wp-starter-ai --private --source=. --remote=origin --push
+gh repo create bergert/pediment-ai --private --source=. --remote=origin --push
 gh run watch    # wait for CI green
 git tag v0.1.0
 git push origin v0.1.0
-gh release create v0.1.0 --title "v0.1.0 — initial release" --notes "First versioned release of wp-starter-ai. Compose, Edit, Refine in mock mode out of the box."
+gh release create v0.1.0 --title "v0.1.0 — initial release" --notes "First versioned release of pediment-ai. Compose, Edit, Refine in mock mode out of the box."
 ```
 
 - [ ] **Step 4: Verify Composer resolution**
 
 ```bash
-mkdir -p /tmp/wp-starter-ai-resolve
-cd /tmp/wp-starter-ai-resolve
+mkdir -p /tmp/pediment-ai-resolve
+cd /tmp/pediment-ai-resolve
 cat > composer.json <<'EOF'
 {
   "name": "test/resolve",
   "repositories": [
-    { "type": "vcs", "url": "git@github.com:bergert/wp-starter-ai.git" }
+    { "type": "vcs", "url": "git@github.com:bergert/pediment-ai.git" }
   ],
-  "require": { "bergert/wp-starter-ai": "^0.1" },
+  "require": { "bergert/pediment-ai": "^0.1" },
   "minimum-stability": "dev",
   "prefer-stable": true
 }
 EOF
 composer install --no-interaction
-ls vendor/bergert/wp-starter-ai/plugin.php
+ls vendor/bergert/pediment-ai/plugin.php
 ```
 
 Expected: resolves at v0.1.0; `plugin.php` exists.
@@ -5240,7 +5240,7 @@ Expected: resolves at v0.1.0; `plugin.php` exists.
 - [ ] **Step 5: Clean up**
 
 ```bash
-rm -rf /tmp/wp-starter-ai-resolve
+rm -rf /tmp/pediment-ai-resolve
 ```
 
 Plan B complete. Move on to Plan C (client template) — `wp-client-template`.
@@ -5250,7 +5250,7 @@ Plan B complete. Move on to Plan C (client template) — `wp-client-template`.
 ## Self-review notes
 
 - **Spec coverage:** Tasks 1–34 cover the spec's full v1 scope for the AI plugin: scaffold, Anthropic client, block-tree parse/serialize/validate, runtime schema discovery + caching, tool-use parsing for `emit_page` / `emit_block` / `web_fetch`, jobs table + Action Scheduler worker, REST endpoints for compose/edit/refine/status with rate limiting, mock provider with 9 fixtures, usage tracker + pricing, encrypted settings store, full editor sidebar (DocumentPanel/Compose/Edit/BlockPanel/Refine/SourcePills/useJobPolling), WP-CLI dump-schema, three E2E specs in mock mode, README + prompts + privacy docs, v0.1.0 release.
-- **Type consistency:** the `ProviderInterface` is used uniformly by `Client` (Task 8/16), `MockProvider` (Task 21), and all REST controllers (filtered via `starter_ai_provider`). Block-tree shape `{name, attributes, innerBlocks}` is consistent across Parser/Serializer/Validator/ComposeJob/SchemaBuilder. Job lifecycle states `queued → composing → complete|error` are honored across JobStore, ComposeJob, StatusController, and the `useJobPolling` hook. Option keys (`starter_ai_settings`, `starter_ai_rate_limits`, `starter_ai_db_version`) are reused consistently.
+- **Type consistency:** the `ProviderInterface` is used uniformly by `Client` (Task 8/16), `MockProvider` (Task 21), and all REST controllers (filtered via `pediment_ai_provider`). Block-tree shape `{name, attributes, innerBlocks}` is consistent across Parser/Serializer/Validator/ComposeJob/SchemaBuilder. Job lifecycle states `queued → composing → complete|error` are honored across JobStore, ComposeJob, StatusController, and the `useJobPolling` hook. Option keys (`pediment_ai_settings`, `pediment_ai_rate_limits`, `pediment_ai_db_version`) are reused consistently.
 - **No placeholders:** every task contains real code, real tests, and exact commands. No "TBD" / "Similar to Task N" references.
 - **Plan A dependency:** the wp-env config in Task 3 mounts the sibling theme; CI workflow in Task 7 checks out both repos. E2E in Task 32 relies on the theme's blocks being built and registered. Plan A v0.1.0 must be installable (Composer or wp-env mount) before Plan B can run.
 - **Open items deferred to execution:** Composer distribution mechanism (matches Plan A's open call — GitHub VCS repo with `composer/installers` is the default plan). Pricing constants (Task 23) need a final refresh against current Anthropic prices before release. Few-shot examples for system prompts (mentioned in `docs/prompts.md`) — add when output quality on a specific page type proves weak in practice.

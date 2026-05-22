@@ -30,10 +30,10 @@ const FALLBACK = [
 export default function QuickActions({ block, onAction, busy }: { block: SelectedBlock; onAction: (instruction: string) => void; busy: boolean }) {
   const actions = PRESETS[block.name] ?? FALLBACK;
   return (
-    <div className="starter-ai-chat__quick">
+    <div className="pediment-ai-chat__quick">
       {actions.map((a) => (
         <Button key={a.label} variant="secondary" size="small" onClick={() => onAction(a.instruction)} disabled={busy}>
-          {__(a.label, 'starter-ai')}
+          {__(a.label, 'pediment-ai')}
         </Button>
       ))}
     </div>

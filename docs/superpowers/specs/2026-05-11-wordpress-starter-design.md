@@ -8,7 +8,7 @@
 
 A WordPress-native counterpart to the Payload Starter, so clients can choose between Payload (typed, code-first, Next.js) and WordPress (familiar, plugin-rich, traditional PHP hosting) while getting comparable capability from us: forkable starter, AI page composition, design tokens, block-based pages, editor-friendly admin.
 
-The two starters are siblings — not a shared codebase — but the design philosophies match: forkable per-client, starter/client hard line, AI-first content composition, design-tokens-everywhere, clear scope boundaries.
+The two starters are siblings — not a shared codebase — but the design philosophies match: forkable per-client, pediment/client hard line, AI-first content composition, design-tokens-everywhere, clear scope boundaries.
 
 ## Non-goals (v1)
 
@@ -26,11 +26,11 @@ The two starters are siblings — not a shared codebase — but the design philo
 Three repos, distributed via Composer.
 
 ```
-wp-starter-theme/          ← parent theme (you maintain, semver-tagged releases)
+pediment/          ← parent theme (you maintain, semver-tagged releases)
   theme.json               ← design token defaults (palette, typography, spacing, layout)
   templates/               ← FSE block templates (front-page, single, archive, page, 404)
   parts/                   ← header/footer template parts
-  blocks/                  ← starter Gutenberg blocks (starter/* namespace)
+  blocks/                  ← starter Gutenberg blocks (pediment/* namespace)
     hero/
       block.json
       render.php
@@ -49,7 +49,7 @@ wp-starter-theme/          ← parent theme (you maintain, semver-tagged release
   style.css                ← theme metadata
   .wp-env.json             ← local dev: mounts theme into fresh WP
 
-wp-starter-ai/             ← AI plugin (you maintain, semver-tagged releases)
+pediment-ai/             ← AI plugin (you maintain, semver-tagged releases)
   plugin.php               ← bootstrap
   src/
     Anthropic/
@@ -57,7 +57,7 @@ wp-starter-ai/             ← AI plugin (you maintain, semver-tagged releases)
       SchemaBuilder.php    ← merges block.json files into Anthropic tool schema
     Jobs/
       ComposeJob.php       ← Action Scheduler worker
-      JobStore.php         ← wp_starter_ai_jobs table CRUD
+      JobStore.php         ← wp_pediment_ai_jobs table CRUD
     Rest/
       ComposeController.php
       RefineController.php
@@ -67,7 +67,7 @@ wp-starter-ai/             ← AI plugin (you maintain, semver-tagged releases)
       Serializer.php       ← JSON tree → Gutenberg block markup
       Parser.php           ← post_content → JSON tree
     Mock/
-      MockProvider.php     ← returns fixture responses when STARTER_AI_MOCK=true
+      MockProvider.php     ← returns fixture responses when PEDIMENT_AI_MOCK=true
       fixtures/
         landing.json, about.json, contact.json, services.json, refine-*.json, edit-*.json
     Usage/
@@ -84,7 +84,7 @@ wp-starter-ai/             ← AI plugin (you maintain, semver-tagged releases)
   .wp-env.json             ← local dev: mounts plugin + the parent theme as a dependency
 
 wp-client-template/        ← Bedrock skeleton you copy per client
-  composer.json            ← requires: bergert/wp-starter-theme, bergert/wp-starter-ai,
+  composer.json            ← requires: bergert/pediment, bergert/pediment-ai,
                                        roots/bedrock, wp core
   config/                  ← Bedrock env-based config (.env, application.php)
   web/
@@ -99,7 +99,7 @@ wp-client-template/        ← Bedrock skeleton you copy per client
           templates/, parts/  ← any overrides
           functions.php    ← register client blocks, enqueue assets
       plugins/
-        starter-ai/        ← Composer-installed, never edited
+        pediment-ai/        ← Composer-installed, never edited
     wp-config.php          ← Bedrock shim
   .env.example             ← DB_*, WP_HOME, WP_SITEURL, ANTHROPIC_API_KEY
   .wp-env.json             ← optional, for local parity
@@ -109,7 +109,7 @@ wp-client-template/        ← Bedrock skeleton you copy per client
 
 - Parent theme and AI plugin: tagged Git releases on a private GitHub org, exposed as Composer packages (via a private Composer repository URL or Satis/Packeton).
 - Client onboarding: clone the client template, `composer install`, set `.env`, deploy.
-- Starter improvements reach clients via `composer update bergert/wp-starter-theme` and/or `composer update bergert/wp-starter-ai`. Version-pinned, atomic, no merge conflicts.
+- Starter improvements reach clients via `composer update bergert/pediment` and/or `composer update bergert/pediment-ai`. Version-pinned, atomic, no merge conflicts.
 
 ### Versioning policy
 
@@ -119,33 +119,33 @@ wp-client-template/        ← Bedrock skeleton you copy per client
 
 | Payload | WordPress equivalent |
 |---|---|
-| `src/blocks/` (starter-owned) | `wp-starter-theme/blocks/` (namespace `starter/*`) |
+| `src/blocks/` (starter-owned) | `pediment/blocks/` (namespace `pediment/*`) |
 | `src/blocks/client/` | `client-theme/blocks/` (namespace `client/*`) |
-| `src/theme/tokens.ts` | `wp-starter-theme/theme.json` |
+| `src/theme/tokens.ts` | `pediment/theme.json` |
 | `src/theme/tokens.client.ts` | `client-theme/theme.json` |
 | Brand/Header/Footer globals | theme.json + FSE template parts + native Settings API Brand page |
-| AI composer endpoint | `wp-starter-ai/` REST routes |
+| AI composer endpoint | `pediment-ai/` REST routes |
 | `pnpm seed` | `wp starter-theme seed` (WP-CLI command) |
-| `git merge upstream/main` | `composer update bergert/wp-starter-theme` |
+| `git merge upstream/main` | `composer update bergert/pediment` |
 
 ## Blocks
 
 ### Catalog (v1)
 
-All under `starter/*` namespace.
+All under `pediment/*` namespace.
 
 | Block | Notes |
 |---|---|
-| `starter/hero` | Variants via `variant` attribute: `default \| split \| centered \| media-bg`. Attributes: `headline`, `subheadline`, `ctaText`, `ctaUrl`, `mediaId`, `variant`. |
-| `starter/cta` | Title, body, primary button, optional secondary button. |
-| `starter/faq` | Container with inner blocks. Allowed child: `starter/faq-item`. |
-| `starter/faq-item` | Question + answer (rich text). Accordion behavior on render. |
-| `starter/prose` | Long-form rich text with constrained content width and typographic defaults. |
-| `starter/pull-quote` | Quote + optional citation. |
-| `starter/image-caption` | Image + caption + optional alt-text override. |
-| `starter/stat` | Big number + label + optional context line. |
-| `starter/blog-index` | Server-rendered list of latest posts with category filter attribute. |
-| `starter/contact-form` | Configurable fields (name, email, optional phone, message). Recipient defaults to Brand Settings; overridable per-instance. Honeypot + 5s time-trap. |
+| `pediment/hero` | Variants via `variant` attribute: `default \| split \| centered \| media-bg`. Attributes: `headline`, `subheadline`, `ctaText`, `ctaUrl`, `mediaId`, `variant`. |
+| `pediment/cta` | Title, body, primary button, optional secondary button. |
+| `pediment/faq` | Container with inner blocks. Allowed child: `pediment/faq-item`. |
+| `pediment/faq-item` | Question + answer (rich text). Accordion behavior on render. |
+| `pediment/prose` | Long-form rich text with constrained content width and typographic defaults. |
+| `pediment/pull-quote` | Quote + optional citation. |
+| `pediment/image-caption` | Image + caption + optional alt-text override. |
+| `pediment/stat` | Big number + label + optional context line. |
+| `pediment/blog-index` | Server-rendered list of latest posts with category filter attribute. |
+| `pediment/contact-form` | Configurable fields (name, email, optional phone, message). Recipient defaults to Brand Settings; overridable per-instance. Honeypot + 5s time-trap. |
 
 ### Registration pattern
 
@@ -177,7 +177,7 @@ Parent theme `theme.json` defines:
 - `settings.typography.fontSizes` — fluid type scale with clamp() values
 - `settings.spacing.spacingScale` — t-shirt sizes
 - `settings.layout.contentSize` / `wideSize` — container widths
-- `styles.blocks.starter/*` — per-block default styles using `var(--wp--preset--color--primary)` etc.
+- `styles.blocks.pediment/*` — per-block default styles using `var(--wp--preset--color--primary)` etc.
 
 Child theme `theme.json` overrides brand-specific values (palette, font families). WP merges parent + child automatically and generates CSS custom properties. Block templates and `render.php` reference `var(--wp--preset--*)` only.
 
@@ -195,7 +195,7 @@ The parent theme ships block patterns for common compositions (hero + cta + faq,
 
 1. User opens a page (new or existing). Document sidebar shows "AI" panel.
 2. **Compose** button → modal with: prompt textarea, page-type selector (Landing / About / Services / Contact / Other), optional tone descriptor.
-3. Submit → POST `/wp-json/starter-ai/v1/compose` → enqueues an Action Scheduler job, returns `{ job_id }` immediately.
+3. Submit → POST `/wp-json/pediment-ai/v1/compose` → enqueues an Action Scheduler job, returns `{ job_id }` immediately.
 4. Worker process:
    - Builds system prompt: rules + merged block schema + Brand Settings values + few-shot examples per page type + available block patterns.
    - Calls Anthropic Messages API with `web_fetch_20250910` server tool enabled + custom `emit_page(blocks: BlockTree)` tool whose input JSON schema is the merged block schema.
@@ -220,7 +220,7 @@ The parent theme ships block patterns for common compositions (hero + cta + faq,
 1. Document sidebar **Edit with AI** button → modal with prompt input. Placeholder: "Add an FAQ section, shorten the hero, change CTA to…"
 2. Modal includes warning: "This will replace your current page. Use Undo to revert."
 3. Plugin parses `post_content` via `Parser.php` → JSON block tree.
-4. POST `/wp-json/starter-ai/v1/edit` with `{ tree, instruction }` → enqueues a job. Same polling pattern as compose.
+4. POST `/wp-json/pediment-ai/v1/edit` with `{ tree, instruction }` → enqueues a job. Same polling pattern as compose.
 5. Worker builds prompt with existing tree + instruction + schema + brand context. web_fetch enabled.
 6. Result replaces post content via `dispatch('core/block-editor').resetBlocks()`. Native undo works as expected.
 
@@ -231,7 +231,7 @@ No diff UI in v1. Deferred to v2 if editor feedback demands it.
 1. User selects any block. Block-level AI panel shows in the sidebar.
 2. Quick actions (contextual to block type): for CTA → "Make more urgent", "Shorter"; for Hero → "Try a different angle", "More benefit-led"; etc.
 3. Custom instruction input always available.
-4. Action → POST `/wp-json/starter-ai/v1/refine` (blocking, no polling) with `{ blockName, attributes, innerBlocks, instruction }`.
+4. Action → POST `/wp-json/pediment-ai/v1/refine` (blocking, no polling) with `{ blockName, attributes, innerBlocks, instruction }`.
 5. Backend uses single-block schema + current attributes + instruction. `emit_block(attributes, innerBlocks)` tool.
 6. Returns new attributes. Editor merges via `updateBlockAttributes` + `replaceInnerBlocks`.
 
@@ -242,7 +242,7 @@ web_fetch is **off by default** for refine. Refines are short and should stay fo
 Built at **runtime**, not release time. The starter theme and AI plugin ship as independent Composer packages with independent release cycles — a build-time schema would couple them. Instead:
 
 - `SchemaBuilder` queries `WP_Block_Type_Registry::get_instance()->get_all_registered()` per request.
-- Filters to: all `starter/*` blocks, all `client/*` blocks, plus a curated allowlist of core blocks needed for prose content (`core/paragraph`, `core/heading`, `core/list`, `core/list-item`, `core/image`, `core/separator`). Core block schemas are hard-coded in the plugin since they're stable WP APIs.
+- Filters to: all `pediment/*` blocks, all `client/*` blocks, plus a curated allowlist of core blocks needed for prose content (`core/paragraph`, `core/heading`, `core/list`, `core/list-item`, `core/image`, `core/separator`). Core block schemas are hard-coded in the plugin since they're stable WP APIs.
 - For each block: reads `attributes`, `description`, `parent`, `ancestor`, `supports` from the registered type.
 - Emits the final Anthropic tool input JSON schema for `emit_page(blocks: BlockTree)`.
 
@@ -251,16 +251,16 @@ Result shape per block:
 ```jsonc
 {
   "blocks": {
-    "starter/hero": {
+    "pediment/hero": {
       "description": "...",
       "attributes": { "variant": { "type": "string", "enum": [...] }, ... },
       "allowsInnerBlocks": false
     },
-    "starter/faq": {
+    "pediment/faq": {
       "description": "...",
       "attributes": { ... },
       "allowsInnerBlocks": true,
-      "allowedChildBlocks": ["starter/faq-item"]
+      "allowedChildBlocks": ["pediment/faq-item"]
     }
   }
 }
@@ -270,7 +270,7 @@ Result is cached in a transient (1 hour TTL, invalidated when `WP_Block_Type_Reg
 
 Client blocks that don't follow the AI-aware convention (missing `description` or implicit attributes via `supports` only) are excluded from the schema with a warning surfaced on the AI plugin's settings page.
 
-An optional `wp-starter-ai/schema/blocks.json` cache file may be committed for offline testing — populated by a `wp starter-ai dump-schema` WP-CLI command that introspects a running WP instance. Not used at runtime.
+An optional `pediment-ai/schema/blocks.json` cache file may be committed for offline testing — populated by a `wp pediment-ai dump-schema` WP-CLI command that introspects a running WP instance. Not used at runtime.
 
 ### Anthropic API integration
 
@@ -305,7 +305,7 @@ Configurable in settings. Prevents accidental budget burn from a single editor.
 
 ### Usage telemetry
 
-`wp_starter_ai_usage` table: `id, user_id, kind, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, web_fetch_count, cost_estimate_usd, created_at`.
+`wp_pediment_ai_usage` table: `id, user_id, kind, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, web_fetch_count, cost_estimate_usd, created_at`.
 
 Cost estimate computed from current published Anthropic prices, configurable in plugin source for when prices change. Settings page shows month-to-date totals.
 
@@ -313,7 +313,7 @@ No data leaves the site.
 
 ### Mock mode
 
-When `STARTER_AI_MOCK=true` in env (or in plugin settings for quick toggle), `MockProvider` returns fixture responses:
+When `PEDIMENT_AI_MOCK=true` in env (or in plugin settings for quick toggle), `MockProvider` returns fixture responses:
 
 - Hand-crafted JSON files in `src/Mock/fixtures/`
 - One fixture per page type for compose: `landing.json`, `about.json`, `services.json`, `contact.json`
@@ -329,7 +329,7 @@ README ships disclosure boilerplate for client privacy policies covering: AI pro
 
 ## Brand Settings
 
-Native WP Settings API admin page registered in `wp-starter-theme/inc/brand-settings.php`. Fields:
+Native WP Settings API admin page registered in `pediment/inc/brand-settings.php`. Fields:
 
 - Brand name, tagline, voice/tone descriptor (text)
 - Logo (image, `wp.media` picker)
@@ -344,7 +344,7 @@ The Brand page is registered by the parent theme, not a plugin — the theme is 
 
 ## Contact form
 
-`starter/contact-form` block configuration via block attributes:
+`pediment/contact-form` block configuration via block attributes:
 
 - Fields shown: `name` (required), `email` (required), `phone` (optional), `message` (required)
 - Recipient: defaults to Brand Settings primary contact email; overridable per-instance
@@ -359,7 +359,7 @@ Spam protection:
 
 Submission flow:
 
-1. JS submits to REST endpoint `/wp-json/starter/v1/contact`
+1. JS submits to REST endpoint `/wp-json/pediment/v1/contact`
 2. Server validates honeypot + time-trap + required fields + email format
 3. Stores submission as a `contact_submission` CPT (private, admin-only)
 4. Sends notification email via `wp_mail()` to recipient
@@ -416,7 +416,7 @@ CI runs PHP + JS unit tests + Playwright on every PR. Linting includes:
 
 ### Starter author (you)
 
-- `wp-env start` in either `wp-starter-theme/` or `wp-starter-ai/`. Mounts the package into a fresh WP install with MariaDB.
+- `wp-env start` in either `pediment/` or `pediment-ai/`. Mounts the package into a fresh WP install with MariaDB.
 - `pnpm dev` runs `@wordpress/scripts start` for editor JS hot-reload.
 - For working on both simultaneously, the AI plugin's `.wp-env.json` declares the parent theme as a `mappings` entry pointing at the local theme repo.
 
@@ -433,7 +433,7 @@ Targeted at clients deploying to Hetzner Webhosting, Hetzner Cloud, or comparabl
 
 - **Hetzner Cloud / VPS / dedicated**: full control. Bedrock standard install. nginx + PHP-FPM with `max_execution_time` ≥ 120s. No SSE config needed since we use polling.
 - **Hetzner Webhosting (managed shared)**: Bedrock works, follow their non-standard webroot convention; Composer-install via SSH or pre-deploy CI step. PHP execution time configurable via `.htaccess`. Action Scheduler needs WP cron working — verify cron is enabled.
-- **Cloudflare in front**: bypass for `/wp-json/starter-ai/*` if a client adds Cloudflare proxy mode. Standard recommendation, not required.
+- **Cloudflare in front**: bypass for `/wp-json/pediment-ai/*` if a client adds Cloudflare proxy mode. Standard recommendation, not required.
 
 ## Open questions punted to planning
 

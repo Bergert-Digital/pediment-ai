@@ -1,17 +1,17 @@
 <?php
-namespace StarterAi\Tests\Chat;
+namespace PedimentAi\Tests\Chat;
 
-use StarterAi\Chat\ConversationStore;
+use PedimentAi\Chat\ConversationStore;
 
 class ConversationStoreTest extends \WP_UnitTestCase {
 	private ConversationStore $store;
 
 	public function setUp(): void {
 		parent::setUp();
-		\starter_ai_install_tables();
+		\pediment_ai_install_tables();
 		global $wpdb;
-		$wpdb->query( "TRUNCATE {$wpdb->prefix}starter_ai_chat_conversations" );
-		$wpdb->query( "TRUNCATE {$wpdb->prefix}starter_ai_chat_messages" );
+		$wpdb->query( "TRUNCATE {$wpdb->prefix}pediment_ai_chat_conversations" );
+		$wpdb->query( "TRUNCATE {$wpdb->prefix}pediment_ai_chat_messages" );
 		$this->store = new ConversationStore();
 	}
 

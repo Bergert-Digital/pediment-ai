@@ -2,12 +2,12 @@
 /**
  * Builds the system prompt and context messages for a chat turn.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\Chat;
+namespace PedimentAi\Chat;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -43,7 +43,7 @@ final class PromptBuilder {
 		 * @param string                            $prompt      Composed system prompt.
 		 * @param array<string,array<string,mixed>> $blockSchema The block schema available to this turn.
 		 */
-		return (string) apply_filters( 'starter_ai_system_prompt', $prompt, $this->blockSchema );
+		return (string) apply_filters( 'pediment_ai_system_prompt', $prompt, $this->blockSchema );
 	}
 
 	/**

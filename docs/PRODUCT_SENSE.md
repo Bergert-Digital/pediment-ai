@@ -51,7 +51,7 @@ For every flow, ask:
 - **Trust signals.** Does the user know the model is working? Did errors arrive with a useful sentence, not a stack trace?
 - **Reversibility.** Is everything undoable in one Gutenberg history step? If something was applied that shouldn't have been, can she fix it without reaching for the database?
 - **Abort.** While a turn is running, the **Stop** button must actually stop it within ~1s. Server should mark the turn aborted and not keep streaming into a corpse.
-- **Empty states.** Brand new install, no API key set, mock mode off — what does she see? Is the message actionable ("Add your Anthropic API key in Settings → Starter AI")?
+- **Empty states.** Brand new install, no API key set, mock mode off — what does she see? Is the message actionable ("Add your Anthropic API key in Settings → Pediment AI")?
 - **Rate limit hit.** What does the chat look like after the 31st compose this hour? Does it tell her *when* she can try again?
 - **Selection lost.** She clicks the chat sidebar — does that count as deselecting a block? (It shouldn't; quick actions need persistent selection.)
 - **Cold canvas.** Page is empty, nothing selected. Quick-action row should be hidden, not show stale buttons.

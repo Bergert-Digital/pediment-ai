@@ -1,4 +1,4 @@
-# Vision — Starter AI
+# Vision — Pediment AI
 
 ## What we're building
 

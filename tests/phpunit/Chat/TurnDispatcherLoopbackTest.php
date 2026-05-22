@@ -1,7 +1,7 @@
 <?php
-namespace StarterAi\Tests\Chat;
+namespace PedimentAi\Tests\Chat;
 
-use StarterAi\Chat\TurnDispatcher;
+use PedimentAi\Chat\TurnDispatcher;
 
 class TurnDispatcherLoopbackTest extends \WP_UnitTestCase {
 	public function test_dispatch_fires_nonblocking_loopback_with_token_header(): void {
@@ -15,9 +15,9 @@ class TurnDispatcherLoopbackTest extends \WP_UnitTestCase {
 
 		remove_all_filters( 'pre_http_request' );
 		$this->assertStringContainsString( 'rest_route=', $captured['url'] );
-		$this->assertStringContainsString( '/starter-ai/v1/chat/turns/77/run', urldecode( $captured['url'] ) );
+		$this->assertStringContainsString( '/pediment-ai/v1/chat/turns/77/run', urldecode( $captured['url'] ) );
 		$this->assertFalse( $captured['args']['blocking'], 'must be non-blocking' );
-		$this->assertSame( 'tok-abc', $captured['args']['headers']['X-Starter-Ai-Token'] );
+		$this->assertSame( 'tok-abc', $captured['args']['headers']['X-Pediment-Ai-Token'] );
 		$this->assertLessThanOrEqual( 1.0, $captured['args']['timeout'] );
 	}
 
@@ -40,12 +40,12 @@ class TurnDispatcherLoopbackTest extends \WP_UnitTestCase {
 			$seen = $url;
 			return [ 'response' => [ 'code' => 200 ], 'body' => '' ];
 		}, 10, 3 );
-		add_filter( 'starter_ai_loopback_url', fn() => 'http://127.0.0.1' );
+		add_filter( 'pediment_ai_loopback_url', fn() => 'http://127.0.0.1' );
 
 		( new TurnDispatcher() )->dispatch( 5, 't' );
 
 		remove_all_filters( 'pre_http_request' );
-		remove_all_filters( 'starter_ai_loopback_url' );
+		remove_all_filters( 'pediment_ai_loopback_url' );
 		$this->assertStringStartsWith( 'http://127.0.0.1/?rest_route=', $seen );
 	}
 }

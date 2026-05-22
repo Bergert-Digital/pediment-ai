@@ -9,15 +9,15 @@ export default function MessageList({ messages, streaming }: { messages: ChatMes
   const display = streaming ? [...messages, streaming] : messages;
 
   return (
-    <div className="starter-ai-chat__messages" ref={ref}>
+    <div className="pediment-ai-chat__messages" ref={ref}>
       {display.map((m) => (
-        <div key={m.id} className={`starter-ai-chat__message starter-ai-chat__message--${m.role}`}>
-          <div className="starter-ai-chat__bubble">
+        <div key={m.id} className={`pediment-ai-chat__message pediment-ai-chat__message--${m.role}`}>
+          <div className="pediment-ai-chat__bubble">
             {m.content}
-            {m.status === 'streaming' && <span className="starter-ai-chat__caret" />}
+            {m.status === 'streaming' && <span className="pediment-ai-chat__caret" />}
           </div>
           <ToolCallSummary calls={m.tool_calls} />
-          {m.error && <div className="starter-ai-chat__error">{m.error.message}</div>}
+          {m.error && <div className="pediment-ai-chat__error">{m.error.message}</div>}
         </div>
       ))}
     </div>

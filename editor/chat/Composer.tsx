@@ -14,7 +14,7 @@ export default function Composer({ onSubmit, onStop, busy }: { onSubmit: (text: 
   };
 
   return (
-    <div className="starter-ai-chat__composer">
+    <div className="pediment-ai-chat__composer">
       <textarea
         ref={ref}
         value={value}
@@ -22,14 +22,14 @@ export default function Composer({ onSubmit, onStop, busy }: { onSubmit: (text: 
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); }
         }}
-        placeholder={__('Ask the AI to write or edit…', 'starter-ai')}
+        placeholder={__('Ask the AI to write or edit…', 'pediment-ai')}
         rows={3}
         disabled={busy}
       />
-      <div className="starter-ai-chat__composer-actions">
+      <div className="pediment-ai-chat__composer-actions">
         {busy
-          ? <Button variant="secondary" onClick={onStop}>{__('Stop', 'starter-ai')}</Button>
-          : <Button variant="primary"   onClick={submit} disabled={!value.trim()}>{__('Send', 'starter-ai')}</Button>}
+          ? <Button variant="secondary" onClick={onStop}>{__('Stop', 'pediment-ai')}</Button>
+          : <Button variant="primary"   onClick={submit} disabled={!value.trim()}>{__('Send', 'pediment-ai')}</Button>}
       </div>
     </div>
   );

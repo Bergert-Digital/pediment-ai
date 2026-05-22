@@ -2,12 +2,12 @@
 /**
  * Contract for an Anthropic-compatible message provider.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\Anthropic;
+namespace PedimentAi\Anthropic;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;

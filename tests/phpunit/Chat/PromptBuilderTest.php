@@ -1,8 +1,8 @@
 <?php
-namespace StarterAi\Tests\Chat;
+namespace PedimentAi\Tests\Chat;
 
-use StarterAi\Chat\PromptBuilder;
-use StarterAi\Chat\VirtualTree;
+use PedimentAi\Chat\PromptBuilder;
+use PedimentAi\Chat\VirtualTree;
 
 class PromptBuilderTest extends \WP_UnitTestCase {
 	public function test_system_prompt_lists_block_names_and_tool_conventions(): void {
@@ -52,7 +52,7 @@ class PromptBuilderTest extends \WP_UnitTestCase {
 	}
 
 	public function test_system_prompt_instructs_section_grouping(): void {
-		$pb = new \StarterAi\Chat\PromptBuilder( [ 'core/group' => [ 'description' => 'A section container.' ] ] );
+		$pb = new \PedimentAi\Chat\PromptBuilder( [ 'core/group' => [ 'description' => 'A section container.' ] ] );
 		$prompt = $pb->systemPrompt();
 		$this->assertStringContainsString( 'starter-section', $prompt );
 		$this->assertStringContainsString( 'core/group', $prompt );
@@ -62,10 +62,10 @@ class PromptBuilderTest extends \WP_UnitTestCase {
 		$cb = static function ( $prompt, $schema ) {
 			return $prompt . "\n\nAcme brand voice: confident and concise.";
 		};
-		add_filter( 'starter_ai_system_prompt', $cb, 10, 2 );
+		add_filter( 'pediment_ai_system_prompt', $cb, 10, 2 );
 
 		$builder = new PromptBuilder( [
-			'starter/hero' => [
+			'pediment/hero' => [
 				'description'       => 'A hero block.',
 				'attributes'        => [],
 				'allowsInnerBlocks' => false,
@@ -75,8 +75,8 @@ class PromptBuilderTest extends \WP_UnitTestCase {
 		$prompt = $builder->systemPrompt();
 
 		$this->assertStringContainsString( 'Acme brand voice: confident and concise.', $prompt );
-		$this->assertStringContainsString( 'starter/hero', $prompt, 'Original prompt content must still be present.' );
+		$this->assertStringContainsString( 'pediment/hero', $prompt, 'Original prompt content must still be present.' );
 
-		remove_filter( 'starter_ai_system_prompt', $cb, 10 );
+		remove_filter( 'pediment_ai_system_prompt', $cb, 10 );
 	}
 }

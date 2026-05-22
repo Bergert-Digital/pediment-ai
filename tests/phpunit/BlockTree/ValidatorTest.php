@@ -1,23 +1,23 @@
 <?php
-namespace StarterAi\Tests\BlockTree;
+namespace PedimentAi\Tests\BlockTree;
 
-use StarterAi\BlockTree\Validator;
+use PedimentAi\BlockTree\Validator;
 
 class ValidatorTest extends \WP_UnitTestCase {
 	private function schema(): array {
 		return [
-			'starter/hero' => [
+			'pediment/hero' => [
 				'description' => 'Hero',
 				'attributes'  => [ 'headline' => [ 'type' => 'string' ] ],
 				'allowsInnerBlocks' => false,
 			],
-			'starter/faq' => [
+			'pediment/faq' => [
 				'description'        => 'FAQ',
 				'attributes'         => [],
 				'allowsInnerBlocks'  => true,
-				'allowedChildBlocks' => [ 'starter/faq-item' ],
+				'allowedChildBlocks' => [ 'pediment/faq-item' ],
 			],
-			'starter/faq-item' => [
+			'pediment/faq-item' => [
 				'description' => 'FAQ item',
 				'attributes'  => [],
 				'allowsInnerBlocks' => false,
@@ -27,26 +27,26 @@ class ValidatorTest extends \WP_UnitTestCase {
 
 	public function test_valid_tree_passes(): void {
 		$errors = ( new Validator( $this->schema() ) )->validate( [
-			[ 'name' => 'starter/hero', 'attributes' => [ 'headline' => 'Hi' ], 'innerBlocks' => [] ],
+			[ 'name' => 'pediment/hero', 'attributes' => [ 'headline' => 'Hi' ], 'innerBlocks' => [] ],
 		] );
 		$this->assertSame( [], $errors );
 	}
 
 	public function test_unknown_block_fails(): void {
 		$errors = ( new Validator( $this->schema() ) )->validate( [
-			[ 'name' => 'starter/nope', 'attributes' => [], 'innerBlocks' => [] ],
+			[ 'name' => 'pediment/nope', 'attributes' => [], 'innerBlocks' => [] ],
 		] );
 		$this->assertNotEmpty( $errors );
-		$this->assertStringContainsString( 'starter/nope', $errors[0] );
+		$this->assertStringContainsString( 'pediment/nope', $errors[0] );
 	}
 
 	public function test_inner_blocks_on_non_container_fail(): void {
 		$errors = ( new Validator( $this->schema() ) )->validate( [
 			[
-				'name'        => 'starter/hero',
+				'name'        => 'pediment/hero',
 				'attributes'  => [],
 				'innerBlocks' => [
-					[ 'name' => 'starter/faq-item', 'attributes' => [], 'innerBlocks' => [] ],
+					[ 'name' => 'pediment/faq-item', 'attributes' => [], 'innerBlocks' => [] ],
 				],
 			],
 		] );
@@ -56,10 +56,10 @@ class ValidatorTest extends \WP_UnitTestCase {
 	public function test_disallowed_child_fails(): void {
 		$errors = ( new Validator( $this->schema() ) )->validate( [
 			[
-				'name'        => 'starter/faq',
+				'name'        => 'pediment/faq',
 				'attributes'  => [],
 				'innerBlocks' => [
-					[ 'name' => 'starter/hero', 'attributes' => [], 'innerBlocks' => [] ],
+					[ 'name' => 'pediment/hero', 'attributes' => [], 'innerBlocks' => [] ],
 				],
 			],
 		] );
@@ -68,7 +68,7 @@ class ValidatorTest extends \WP_UnitTestCase {
 
 	public function test_attributes_not_object_fails(): void {
 		$errors = ( new Validator( $this->schema() ) )->validate( [
-			[ 'name' => 'starter/hero', 'attributes' => 'oops', 'innerBlocks' => [] ],
+			[ 'name' => 'pediment/hero', 'attributes' => 'oops', 'innerBlocks' => [] ],
 		] );
 		$this->assertNotEmpty( $errors );
 	}

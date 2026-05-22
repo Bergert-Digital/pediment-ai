@@ -1,18 +1,18 @@
 <?php
-namespace StarterAi\Tests\Rest;
+namespace PedimentAi\Tests\Rest;
 
-use StarterAi\Chat\ConversationStore;
+use PedimentAi\Chat\ConversationStore;
 
 class StartTurnDispatchTest extends \WP_UnitTestCase {
 	public function setUp(): void {
 		parent::setUp();
-		\starter_ai_install_tables();
-		( new \StarterAi\Rest\ChatController() )->register();
+		\pediment_ai_install_tables();
+		( new \PedimentAi\Rest\ChatController() )->register();
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
 	}
 
 	private function start( int $post_id, int $conv ): \WP_REST_Response {
-		$req = new \WP_REST_Request( 'POST', '/starter-ai/v1/chat/turns' );
+		$req = new \WP_REST_Request( 'POST', '/pediment-ai/v1/chat/turns' );
 		$req->set_body_params( [
 			'post_id'         => $post_id,
 			'conversation_id' => $conv,
@@ -46,14 +46,14 @@ class StartTurnDispatchTest extends \WP_UnitTestCase {
 	public function test_inline_mode_runs_synchronously(): void {
 		$post = self::factory()->post->create();
 		$conv = ( new ConversationStore() )->getOrCreate( $post, get_current_user_id() )['id'];
-		add_filter( 'starter_ai_dispatch_mode', fn() => 'inline' );
-		add_filter( 'starter_ai_provider', fn() => new \StarterAi\Mock\MockProvider( STARTER_AI_PLUGIN_DIR . '/src/Mock/fixtures' ) );
+		add_filter( 'pediment_ai_dispatch_mode', fn() => 'inline' );
+		add_filter( 'pediment_ai_provider', fn() => new \PedimentAi\Mock\MockProvider( PEDIMENT_AI_PLUGIN_DIR . '/src/Mock/fixtures' ) );
 
 		$res     = $this->start( $post, $conv );
 		$turn_id = $res->get_data()['turn_id'];
 
-		remove_all_filters( 'starter_ai_dispatch_mode' );
-		remove_all_filters( 'starter_ai_provider' );
+		remove_all_filters( 'pediment_ai_dispatch_mode' );
+		remove_all_filters( 'pediment_ai_provider' );
 		$this->assertSame( 202, $res->get_status() );
 		$this->assertContains(
 			( new ConversationStore() )->getMessage( $turn_id )['status'],

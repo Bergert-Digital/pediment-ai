@@ -1,7 +1,7 @@
 <?php
 /**
- * Plugin Name:       Starter AI
- * Plugin URI:        https://github.com/bergert/wp-starter-ai
+ * Plugin Name:       Pediment AI
+ * Plugin URI:        https://github.com/bergert/pediment-ai
  * Description:       Gutenberg AI composer for pediment: compose, edit, and refine pages with Claude.
  * Version:           0.1.0
  * Requires at least: 6.4
@@ -10,19 +10,19 @@
  * Author URI:        https://bergert.digital
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain:       starter-ai
+ * Text Domain:       pediment-ai
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'STARTER_AI_VERSION', '0.2.0' );
-define( 'STARTER_AI_PLUGIN_FILE', __FILE__ );
-define( 'STARTER_AI_PLUGIN_DIR', __DIR__ );
-define( 'STARTER_AI_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+define( 'PEDIMENT_AI_VERSION', '0.2.0' );
+define( 'PEDIMENT_AI_PLUGIN_FILE', __FILE__ );
+define( 'PEDIMENT_AI_PLUGIN_DIR', __DIR__ );
+define( 'PEDIMENT_AI_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
 if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
 	require __DIR__ . '/vendor/autoload.php';
@@ -35,12 +35,12 @@ if ( file_exists( __DIR__ . '/vendor/woocommerce/action-scheduler/action-schedul
 }
 
 require_once __DIR__ . '/src/Schema/tables.php';
-register_activation_hook( STARTER_AI_PLUGIN_FILE, 'starter_ai_install_tables' );
+register_activation_hook( PEDIMENT_AI_PLUGIN_FILE, 'pediment_ai_install_tables' );
 add_action(
 	'plugins_loaded',
 	static function () {
-		if ( get_option( 'starter_ai_db_version' ) !== STARTER_AI_VERSION ) {
-			starter_ai_install_tables();
+		if ( get_option( 'pediment_ai_db_version' ) !== PEDIMENT_AI_VERSION ) {
+			pediment_ai_install_tables();
 		}
 	},
 	5
@@ -48,14 +48,14 @@ add_action(
 
 if ( defined( 'WP_CLI' ) && WP_CLI ) {
 	require_once __DIR__ . '/wp-cli/DumpSchemaCommand.php';
-	\WP_CLI::add_command( 'starter-ai dump-schema', \StarterAi\Cli\DumpSchemaCommand::class );
+	\WP_CLI::add_command( 'pediment-ai dump-schema', \PedimentAi\Cli\DumpSchemaCommand::class );
 }
 
 add_action(
 	'plugins_loaded',
 	static function () {
-		if ( class_exists( '\\StarterAi\\Bootstrap' ) ) {
-			( new \StarterAi\Bootstrap() )->register();
+		if ( class_exists( '\\PedimentAi\\Bootstrap' ) ) {
+			( new \PedimentAi\Bootstrap() )->register();
 		}
 	}
 );

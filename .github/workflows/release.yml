@@ -68,9 +68,9 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           sed -i -E "s/^([[:space:]]*\*[[:space:]]*Version:[[:space:]]+).+$/\1$VERSION/" plugin.php
-          sed -i -E "s/(define\([[:space:]]*'STARTER_AI_VERSION',[[:space:]]*')[^']*('[[:space:]]*\))/\1$VERSION\2/" plugin.php
+          sed -i -E "s/(define\([[:space:]]*'PEDIMENT_AI_VERSION',[[:space:]]*')[^']*('[[:space:]]*\))/\1$VERSION\2/" plugin.php
           node -e "const f='package.json';const p=require('./'+f);p.version=process.env.VERSION;require('fs').writeFileSync(f,JSON.stringify(p,null,2)+'\n');"
-          grep -E "Version:|STARTER_AI_VERSION" plugin.php
+          grep -E "Version:|PEDIMENT_AI_VERSION" plugin.php
           grep '"version"' package.json
 
       - name: Create release commit and push tag

@@ -16,7 +16,7 @@ These are the things that, if missing or broken, block a feature from shipping. 
 - **Nonce verification.** WP REST nonce on writes.
 - **Input validation.** All params declared in `args` with `type` + `sanitize_callback` + `validate_callback` where it matters. Don't validate impossible cases — only real boundaries.
 - **Rate limit.** Per-user, per-hour, enforced via `Usage\RateLimiter`. Default limits live in `OptionsStore`; tune in admin settings.
-- **Mock-aware.** When `STARTER_AI_MOCK=true` (or the option is set), the controller resolves the `MockProvider` instead of `Anthropic\Client`. Tests rely on this.
+- **Mock-aware.** When `PEDIMENT_AI_MOCK=true` (or the option is set), the controller resolves the `MockProvider` instead of `Anthropic\Client`. Tests rely on this.
 - **PHPUnit coverage.** At minimum: happy path, auth failure, validation failure. Stored under `tests/phpunit/Rest/*ControllerTest.php`.
 
 ## Every block mutation goes through
@@ -41,8 +41,8 @@ These are the things that, if missing or broken, block a feature from shipping. 
 
 ## Releases
 
-- Bumping `STARTER_AI_VERSION` in [plugin.php](plugin.php) triggers a re-run of `starter_ai_install_tables()` on the next page load. Always bump when schema changes.
-- `composer.json` version stays in lockstep with `STARTER_AI_VERSION`.
+- Bumping `PEDIMENT_AI_VERSION` in [plugin.php](plugin.php) triggers a re-run of `pediment_ai_install_tables()` on the next page load. Always bump when schema changes.
+- `composer.json` version stays in lockstep with `PEDIMENT_AI_VERSION`.
 - Release notes captured in `SESSION_LOG.md` for the cutting session; promoted to a CHANGELOG when we have one.
 
 ## Security

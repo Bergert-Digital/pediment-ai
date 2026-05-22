@@ -2,12 +2,12 @@
 /**
  * Serializes a block tree into Gutenberg block markup.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\BlockTree;
+namespace PedimentAi\BlockTree;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;

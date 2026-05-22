@@ -1,13 +1,13 @@
 <?php
 /**
- * Records per-call telemetry to the wp_starter_ai_usage table.
+ * Records per-call telemetry to the wp_pediment_ai_usage table.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\Usage;
+namespace PedimentAi\Usage;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -21,7 +21,7 @@ final class Tracker {
 
 	public function __construct() {
 		global $wpdb;
-		$this->table = $wpdb->prefix . 'starter_ai_usage';
+		$this->table = $wpdb->prefix . 'pediment_ai_usage';
 	}
 
 	/**

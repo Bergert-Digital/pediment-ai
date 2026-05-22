@@ -29,7 +29,7 @@ export default function useChatTurn() {
     if (streaming) {
       // streaming.id < 0 means we're still on the optimistic placeholder (POST hasn't returned a real turn id yet).
       if (streaming.id > 0) {
-        apiFetch({ path: `/starter-ai/v1/chat/turns/${streaming.id}`, method: 'DELETE' }).catch(() => {});
+        apiFetch({ path: `/pediment-ai/v1/chat/turns/${streaming.id}`, method: 'DELETE' }).catch(() => {});
       }
       aborted = true;
     }
@@ -68,7 +68,7 @@ export default function useChatTurn() {
     let turnId: number;
     try {
       const r = await apiFetch<{ turn_id: number }>({
-        path: '/starter-ai/v1/chat/turns',
+        path: '/pediment-ai/v1/chat/turns',
         method: 'POST',
         data: {
           conversation_id: args.conversationId,
@@ -96,7 +96,7 @@ export default function useChatTurn() {
         // Re-fetch the conversation so persisted messages show up in MessageList.
         try {
           const conv = await apiFetch<Conversation>({
-            path: `/starter-ai/v1/chat/conversations?post_id=${args.postId}`,
+            path: `/pediment-ai/v1/chat/conversations?post_id=${args.postId}`,
             method: 'GET',
           });
           setConversation(conv);

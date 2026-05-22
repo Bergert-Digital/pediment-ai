@@ -2,12 +2,12 @@
 /**
  * Anthropic Messages API client.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\Anthropic;
+namespace PedimentAi\Anthropic;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -82,7 +82,7 @@ final class Client implements ProviderInterface {
 		$message    = is_array( $body ) && isset( $body['error']['message'] ) ? (string) $body['error']['message'] : 'Anthropic API error';
 
 		return new \WP_Error(
-			'starter_ai_anthropic_' . $status,
+			'pediment_ai_anthropic_' . $status,
 			$message,
 			[ 'error_type' => $error_type, 'status' => $status ]
 		);
@@ -97,7 +97,7 @@ final class Client implements ProviderInterface {
 
 		$ch = curl_init();
 		if ( false === $ch ) {
-			return new \WP_Error( 'starter_ai_curl_init', 'curl_init failed' );
+			return new \WP_Error( 'pediment_ai_curl_init', 'curl_init failed' );
 		}
 
 		$parser = new SseParser();
@@ -148,7 +148,7 @@ final class Client implements ProviderInterface {
 			$err = curl_error( $ch ) ?: 'cURL failed';
 			curl_multi_remove_handle( $mh, $ch );
 			curl_multi_close( $mh );
-			return new \WP_Error( 'starter_ai_curl_failed', $err );
+			return new \WP_Error( 'pediment_ai_curl_failed', $err );
 		}
 
 		if ( $status < 200 || $status >= 300 ) {
@@ -161,7 +161,7 @@ final class Client implements ProviderInterface {
 			curl_multi_close( $mh );
 			$body = json_decode( $raw, true );
 			return new \WP_Error(
-				'starter_ai_anthropic_' . $status,
+				'pediment_ai_anthropic_' . $status,
 				is_array( $body ) && isset( $body['error']['message'] ) ? (string) $body['error']['message'] : 'Anthropic API error',
 				[ 'status' => $status ]
 			);

@@ -1,7 +1,7 @@
 <?php
-namespace StarterAi\Tests\Chat;
+namespace PedimentAi\Tests\Chat;
 
-use StarterAi\Chat\TurnDispatcher;
+use PedimentAi\Chat\TurnDispatcher;
 
 class TurnDispatcherStashTest extends \WP_UnitTestCase {
 	public function test_stash_roundtrips_then_clears(): void {

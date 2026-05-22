@@ -12,7 +12,7 @@ const b = ( name: string, className?: string ): BlockLike => ( {
 describe( 'planSections', () => {
 	it( 'wraps a separator-delimited run into one section, separators dropped', () => {
 		const blocks = [
-			b( 'starter/hero' ),
+			b( 'pediment/hero' ),
 			b( 'core/separator' ),
 			b( 'core/heading' ),
 			b( 'core/paragraph' ),
@@ -27,7 +27,7 @@ describe( 'planSections', () => {
 		const blocks = [
 			b( 'core/group', 'starter-section' ),
 			b( 'core/separator' ),
-			b( 'starter/faq' ),
+			b( 'pediment/faq' ),
 		];
 		expect( planSections( blocks ) ).toEqual( [
 			{ kind: 'keep', index: 0 },
@@ -55,7 +55,7 @@ describe( 'planSections', () => {
 	it( 'section groups are self-delimiting boundaries: hero + adjacent groups, no separators (repro)', () => {
 		// Model followed the prompt: each section wrapped in a group, no separators.
 		const blocks = [
-			b( 'starter/hero' ),
+			b( 'pediment/hero' ),
 			b( 'core/group', 'starter-section' ),
 			b( 'core/group', 'starter-section' ),
 			b( 'core/group', 'starter-section' ),
@@ -73,7 +73,7 @@ describe( 'planSections', () => {
 			b( 'core/heading' ),
 			b( 'core/paragraph' ),
 			b( 'core/group', 'starter-section' ),
-			b( 'starter/cta' ),
+			b( 'pediment/cta' ),
 		];
 		expect( planSections( blocks ) ).toEqual( [
 			{ kind: 'wrap', indices: [ 0, 1 ] },
@@ -85,10 +85,10 @@ describe( 'planSections', () => {
 	it( 'ignores empty segments from leading/consecutive/trailing separators', () => {
 		const blocks = [
 			b( 'core/separator' ),
-			b( 'starter/hero' ),
+			b( 'pediment/hero' ),
 			b( 'core/separator' ),
 			b( 'core/separator' ),
-			b( 'starter/cta' ),
+			b( 'pediment/cta' ),
 			b( 'core/separator' ),
 		];
 		expect( planSections( blocks ) ).toEqual( [
@@ -103,7 +103,7 @@ describe( 'normalizeSections applier', () => {
 		const root = [
 			{
 				clientId: 'h',
-				name: 'starter/hero',
+				name: 'pediment/hero',
 				attributes: {},
 				innerBlocks: [],
 			},
@@ -155,7 +155,7 @@ describe( 'normalizeSections applier', () => {
 			},
 		} );
 		expect( blocks[ 0 ].innerBlocks.map( ( x: any ) => x.name ) ).toEqual( [
-			'starter/hero',
+			'pediment/hero',
 		] );
 		expect( blocks[ 1 ].innerBlocks.map( ( x: any ) => x.name ) ).toEqual( [
 			'core/heading',
@@ -250,7 +250,7 @@ describe( 'normalizeSections applier', () => {
 		const root = [
 			{
 				clientId: 'h',
-				name: 'starter/hero',
+				name: 'pediment/hero',
 				attributes: {},
 				innerBlocks: [],
 			},

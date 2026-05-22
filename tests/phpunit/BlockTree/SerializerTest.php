@@ -1,19 +1,19 @@
 <?php
-namespace StarterAi\Tests\BlockTree;
+namespace PedimentAi\Tests\BlockTree;
 
-use StarterAi\BlockTree\Serializer;
+use PedimentAi\BlockTree\Serializer;
 
 class SerializerTest extends \WP_UnitTestCase {
 	public function test_serializes_single_block(): void {
 		$markup = ( new Serializer() )->serialize( [
 			[
-				'name'        => 'starter/hero',
+				'name'        => 'pediment/hero',
 				'attributes'  => [ 'headline' => 'Hi' ],
 				'innerBlocks' => [],
 			],
 		] );
 
-		$this->assertStringContainsString( '<!-- wp:starter/hero', $markup );
+		$this->assertStringContainsString( '<!-- wp:pediment/hero', $markup );
 		$this->assertStringContainsString( '"headline":"Hi"', $markup );
 		$this->assertStringContainsString( '/-->', $markup );
 	}
@@ -21,17 +21,17 @@ class SerializerTest extends \WP_UnitTestCase {
 	public function test_serializes_nested_blocks(): void {
 		$markup = ( new Serializer() )->serialize( [
 			[
-				'name'        => 'starter/faq',
+				'name'        => 'pediment/faq',
 				'attributes'  => [],
 				'innerBlocks' => [
-					[ 'name' => 'starter/faq-item', 'attributes' => [ 'question' => 'Q', 'answer' => 'A' ], 'innerBlocks' => [] ],
+					[ 'name' => 'pediment/faq-item', 'attributes' => [ 'question' => 'Q', 'answer' => 'A' ], 'innerBlocks' => [] ],
 				],
 			],
 		] );
 
-		$this->assertStringContainsString( '<!-- wp:starter/faq -->',       $markup );
-		$this->assertStringContainsString( '<!-- wp:starter/faq-item',      $markup );
-		$this->assertStringContainsString( '<!-- /wp:starter/faq -->',      $markup );
+		$this->assertStringContainsString( '<!-- wp:pediment/faq -->',       $markup );
+		$this->assertStringContainsString( '<!-- wp:pediment/faq-item',      $markup );
+		$this->assertStringContainsString( '<!-- /wp:pediment/faq -->',      $markup );
 	}
 
 	public function test_returns_empty_string_for_empty_tree(): void {

@@ -2,12 +2,12 @@
 /**
  * In-memory mutable block tree used during a chat turn.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\Chat;
+namespace PedimentAi\Chat;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;

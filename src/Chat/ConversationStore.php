@@ -2,12 +2,12 @@
 /**
  * CRUD for the chat_conversations and chat_messages tables.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\Chat;
+namespace PedimentAi\Chat;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -19,8 +19,8 @@ final class ConversationStore {
 
 	public function __construct() {
 		global $wpdb;
-		$this->conversations = $wpdb->prefix . 'starter_ai_chat_conversations';
-		$this->messages      = $wpdb->prefix . 'starter_ai_chat_messages';
+		$this->conversations = $wpdb->prefix . 'pediment_ai_chat_conversations';
+		$this->messages      = $wpdb->prefix . 'pediment_ai_chat_messages';
 	}
 
 	/**

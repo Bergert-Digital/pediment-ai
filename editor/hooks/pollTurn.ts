@@ -36,7 +36,7 @@ export function startPolling(turnId: number, d: PollDeps): void {
     if (finished || inFlight) return;
     inFlight = true;
     try {
-      const t = await d.apiFetch({ path: `/starter-ai/v1/chat/turns/${turnId}`, method: 'GET' });
+      const t = await d.apiFetch({ path: `/pediment-ai/v1/chat/turns/${turnId}`, method: 'GET' });
       if (finished) return;
       if (d.isAborted()) {
         finished = true;

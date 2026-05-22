@@ -21,7 +21,7 @@ export default function useConversation(postId: number | null) {
     inflight = (async () => {
       try {
         const data = await apiFetch<Conversation>({
-          path: `/starter-ai/v1/chat/conversations?post_id=${postId}`,
+          path: `/pediment-ai/v1/chat/conversations?post_id=${postId}`,
           method: 'GET',
         });
         setConversation(data);
@@ -40,7 +40,7 @@ export default function useConversation(postId: number | null) {
 
   const clear = useCallback(async () => {
     if (!conv) return;
-    await apiFetch({ path: `/starter-ai/v1/chat/conversations/${conv.id}`, method: 'DELETE' });
+    await apiFetch({ path: `/pediment-ai/v1/chat/conversations/${conv.id}`, method: 'DELETE' });
     lastLoadedPostId = null;
     await load();
   }, [conv, load]);

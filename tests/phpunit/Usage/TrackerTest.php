@@ -1,14 +1,14 @@
 <?php
-namespace StarterAi\Tests\Usage;
+namespace PedimentAi\Tests\Usage;
 
-use StarterAi\Usage\Tracker;
+use PedimentAi\Usage\Tracker;
 
 class TrackerTest extends \WP_UnitTestCase {
 	public function setUp(): void {
 		parent::setUp();
-		\starter_ai_install_tables();
+		\pediment_ai_install_tables();
 		global $wpdb;
-		$wpdb->query( "TRUNCATE {$wpdb->prefix}starter_ai_usage" );
+		$wpdb->query( "TRUNCATE {$wpdb->prefix}pediment_ai_usage" );
 	}
 
 	public function test_records_a_call(): void {
@@ -19,7 +19,7 @@ class TrackerTest extends \WP_UnitTestCase {
 		], 2 );
 
 		global $wpdb;
-		$row = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}starter_ai_usage", ARRAY_A );
+		$row = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}pediment_ai_usage", ARRAY_A );
 		$this->assertSame( 'compose', $row['kind'] );
 		$this->assertSame( '1000',    $row['input_tokens'] );
 		$this->assertSame( '500',     $row['output_tokens'] );

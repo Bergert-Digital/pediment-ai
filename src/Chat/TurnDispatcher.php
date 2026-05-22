@@ -3,12 +3,12 @@
  * Dispatches a chat turn to run in a separate (loopback) request so the
  * starting request can return immediately and the poller can stream.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\Chat;
+namespace PedimentAi\Chat;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -18,7 +18,7 @@ final class TurnDispatcher {
 	private const TTL = 300; // seconds; a turn must start within 5 min.
 
 	private function tokenKey( int $turn_id ): string {
-		return 'starter_ai_turn_token_' . $turn_id;
+		return 'pediment_ai_turn_token_' . $turn_id;
 	}
 
 	public function mintToken( int $turn_id ): string {
@@ -42,7 +42,7 @@ final class TurnDispatcher {
 	}
 
 	private function inputKey( int $turn_id ): string {
-		return 'starter_ai_turn_input_' . $turn_id;
+		return 'pediment_ai_turn_input_' . $turn_id;
 	}
 
 	/**
@@ -66,17 +66,17 @@ final class TurnDispatcher {
 
 	/**
 	 * Loopback base URL. Defaults to the site home. Override for containerised
-	 * dev (e.g. wp-env: define STARTER_AI_LOOPBACK_URL = 'http://127.0.0.1')
+	 * dev (e.g. wp-env: define PEDIMENT_AI_LOOPBACK_URL = 'http://127.0.0.1')
 	 * because the mapped host port is not reachable from inside the container.
 	 */
 	public function loopbackUrl(): string {
-		$base = defined( 'STARTER_AI_LOOPBACK_URL' ) ? (string) STARTER_AI_LOOPBACK_URL : home_url();
+		$base = defined( 'PEDIMENT_AI_LOOPBACK_URL' ) ? (string) PEDIMENT_AI_LOOPBACK_URL : home_url();
 		/**
 		 * Filter the loopback base URL used to run chat turns out-of-band.
 		 *
 		 * @param string $base Base origin, no trailing path.
 		 */
-		return (string) apply_filters( 'starter_ai_loopback_url', $base );
+		return (string) apply_filters( 'pediment_ai_loopback_url', $base );
 	}
 
 	public function dispatch( int $turn_id, string $token ): void {
@@ -88,7 +88,7 @@ final class TurnDispatcher {
 		// Use an unencoded ?rest_route= value so that the URL contains a literal
 		// /run path segment, which allows test interception via pre_http_request
 		// and a simple strpos check.
-		$route = '/' . \StarterAi\Rest\ChatController::NS . '/chat/turns/' . $turn_id . '/run';
+		$route = '/' . \PedimentAi\Rest\ChatController::NS . '/chat/turns/' . $turn_id . '/run';
 		$url   = $base . '/?rest_route=' . $route;
 
 		$host = (string) wp_parse_url( home_url(), PHP_URL_HOST );
@@ -98,7 +98,7 @@ final class TurnDispatcher {
 			'blocking'  => false,
 			'sslverify' => false,
 			'headers'   => array_filter( [
-				'X-Starter-Ai-Token' => $token,
+				'X-Pediment-Ai-Token' => $token,
 				'Host'               => $host,
 			] ),
 			'body'      => [ 'turn_id' => $turn_id ],

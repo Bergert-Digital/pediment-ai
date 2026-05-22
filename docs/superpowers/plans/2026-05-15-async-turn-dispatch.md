@@ -6,13 +6,13 @@
 
 **Architecture:** A new `TurnDispatcher` stashes the request-only inputs (block_tree, selected_block, message) in a per-turn transient, mints a one-time token, and fires a non-blocking `wp_remote_post` loopback to a new internal route `POST /chat/turns/{id}/run`. That route authenticates by token (system call, not cookie), guards idempotency on turn status, and runs the existing `processTurn`. `startTurn` returns `202 {turn_id}` instantly. A filterable dispatch mode falls back to the current synchronous behavior when loopback is unavailable; the fastcgi/`respondAndFlush` path is removed (loopback supersedes it on every SAPI).
 
-**Tech Stack:** WordPress REST API, `wp_remote_post` non-blocking loopback (same mechanism as core `spawn_cron()`), transients, PHPUnit via wp-env tests container, `pre_http_request` filter for HTTP mocking, existing `MockProvider` via `starter_ai_provider` filter.
+**Tech Stack:** WordPress REST API, `wp_remote_post` non-blocking loopback (same mechanism as core `spawn_cron()`), transients, PHPUnit via wp-env tests container, `pre_http_request` filter for HTTP mocking, existing `MockProvider` via `pediment_ai_provider` filter.
 
 **Spec basis:** Conversation research 2026-05-15 — `fastcgi_finish_request` is FPM-only ([PHP manual](https://www.php.net/manual/en/function.fastcgi-finish-request.php)); non-blocking loopback is the WP-canonical cross-SAPI pattern ([Trac #18738](https://core.trac.wordpress.org/ticket/18738)); Action Scheduler is explicitly not for real-time user-facing work ([actionscheduler.org/faq](https://actionscheduler.org/faq/)).
 
 **Worktree note:** Plan-driven multi-task work → execute in a short-lived worktree off `development` (per user worktree policy; create via `superpowers:using-git-worktrees` at execution start). **No schema/migration tasks** — state is carried in transients, not DB columns — so the whole plan is worktree-safe.
 
-**wp-env loopback gotcha (critical):** Inside the wp-env WordPress container, Apache listens on port **80**; the site URL is `http://localhost:8890` (host port mapping). A loopback from PHP *inside* the container to `localhost:8890` does not resolve (nothing on 8890 inside the container) — this is why wp-cron is unreliable in wp-env. The dispatcher therefore targets a **filterable loopback base URL** defaulting to `home_url()` but overridable via the `STARTER_AI_LOOPBACK_URL` constant, set to `http://127.0.0.1` for wp-env in the existing gitignored `wp-starter-child-theme/.wp-env.override.json`. Requests use the `?rest_route=` form (no permalink dependency) and an explicit `Host` header.
+**wp-env loopback gotcha (critical):** Inside the wp-env WordPress container, Apache listens on port **80**; the site URL is `http://localhost:8890` (host port mapping). A loopback from PHP *inside* the container to `localhost:8890` does not resolve (nothing on 8890 inside the container) — this is why wp-cron is unreliable in wp-env. The dispatcher therefore targets a **filterable loopback base URL** defaulting to `home_url()` but overridable via the `PEDIMENT_AI_LOOPBACK_URL` constant, set to `http://127.0.0.1` for wp-env in the existing gitignored `pediment-child-theme/.wp-env.override.json`. Requests use the `?rest_route=` form (no permalink dependency) and an explicit `Host` header.
 
 ---
 
@@ -27,9 +27,9 @@
 `tests/phpunit/Chat/TurnDispatcherTokenTest.php`:
 ```php
 <?php
-namespace StarterAi\Tests\Chat;
+namespace PedimentAi\Tests\Chat;
 
-use StarterAi\Chat\TurnDispatcher;
+use PedimentAi\Chat\TurnDispatcher;
 
 class TurnDispatcherTokenTest extends \WP_UnitTestCase {
 	public function test_minted_token_verifies_once_then_is_consumed(): void {
@@ -52,8 +52,8 @@ class TurnDispatcherTokenTest extends \WP_UnitTestCase {
 
 - [ ] **Step 2: Run it, verify it fails**
 
-Run: `cd /Users/jonas/Entwicklung/wp-starter-child-theme && npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai vendor/bin/phpunit --filter TurnDispatcherTokenTest`
-Expected: FAIL — `Error: Class "StarterAi\Chat\TurnDispatcher" not found`.
+Run: `cd /Users/jonas/Entwicklung/pediment-child-theme && npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai vendor/bin/phpunit --filter TurnDispatcherTokenTest`
+Expected: FAIL — `Error: Class "PedimentAi\Chat\TurnDispatcher" not found`.
 
 - [ ] **Step 3: Create `src/Chat/TurnDispatcher.php` with token methods only**
 
@@ -63,12 +63,12 @@ Expected: FAIL — `Error: Class "StarterAi\Chat\TurnDispatcher" not found`.
  * Dispatches a chat turn to run in a separate (loopback) request so the
  * starting request can return immediately and the poller can stream.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\Chat;
+namespace PedimentAi\Chat;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -78,7 +78,7 @@ final class TurnDispatcher {
 	private const TTL = 300; // seconds; a turn must start within 5 min.
 
 	private function tokenKey( int $turn_id ): string {
-		return 'starter_ai_turn_token_' . $turn_id;
+		return 'pediment_ai_turn_token_' . $turn_id;
 	}
 
 	public function mintToken( int $turn_id ): string {
@@ -124,9 +124,9 @@ The loopback runner has no access to the original request body. Persist the requ
 
 ```php
 <?php
-namespace StarterAi\Tests\Chat;
+namespace PedimentAi\Tests\Chat;
 
-use StarterAi\Chat\TurnDispatcher;
+use PedimentAi\Chat\TurnDispatcher;
 
 class TurnDispatcherStashTest extends \WP_UnitTestCase {
 	public function test_stash_roundtrips_then_clears(): void {
@@ -159,7 +159,7 @@ Expected: FAIL — `Call to undefined method ...::stashInput()`.
 Add inside the class:
 ```php
 	private function inputKey( int $turn_id ): string {
-		return 'starter_ai_turn_input_' . $turn_id;
+		return 'pediment_ai_turn_input_' . $turn_id;
 	}
 
 	/**
@@ -205,9 +205,9 @@ git commit -m "feat(chat): stash per-turn runtime inputs for the loopback runner
 
 ```php
 <?php
-namespace StarterAi\Tests\Chat;
+namespace PedimentAi\Tests\Chat;
 
-use StarterAi\Chat\TurnDispatcher;
+use PedimentAi\Chat\TurnDispatcher;
 
 class TurnDispatcherLoopbackTest extends \WP_UnitTestCase {
 	public function test_dispatch_fires_nonblocking_loopback_with_token_header(): void {
@@ -221,9 +221,9 @@ class TurnDispatcherLoopbackTest extends \WP_UnitTestCase {
 
 		remove_all_filters( 'pre_http_request' );
 		$this->assertStringContainsString( 'rest_route=', $captured['url'] );
-		$this->assertStringContainsString( '/starter-ai/v1/chat/turns/77/run', urldecode( $captured['url'] ) );
+		$this->assertStringContainsString( '/pediment-ai/v1/chat/turns/77/run', urldecode( $captured['url'] ) );
 		$this->assertFalse( $captured['args']['blocking'], 'must be non-blocking' );
-		$this->assertSame( 'tok-abc', $captured['args']['headers']['X-Starter-Ai-Token'] );
+		$this->assertSame( 'tok-abc', $captured['args']['headers']['X-Pediment-Ai-Token'] );
 		$this->assertLessThanOrEqual( 1.0, $captured['args']['timeout'] );
 	}
 
@@ -233,12 +233,12 @@ class TurnDispatcherLoopbackTest extends \WP_UnitTestCase {
 			$seen = $url;
 			return [ 'response' => [ 'code' => 200 ], 'body' => '' ];
 		}, 10, 3 );
-		add_filter( 'starter_ai_loopback_url', fn() => 'http://127.0.0.1' );
+		add_filter( 'pediment_ai_loopback_url', fn() => 'http://127.0.0.1' );
 
 		( new TurnDispatcher() )->dispatch( 5, 't' );
 
 		remove_all_filters( 'pre_http_request' );
-		remove_all_filters( 'starter_ai_loopback_url' );
+		remove_all_filters( 'pediment_ai_loopback_url' );
 		$this->assertStringStartsWith( 'http://127.0.0.1/?rest_route=', $seen );
 	}
 }
@@ -254,22 +254,22 @@ Expected: FAIL — `Call to undefined method ...::dispatch()`.
 ```php
 	/**
 	 * Loopback base URL. Defaults to the site home. Override for containerised
-	 * dev (e.g. wp-env: define STARTER_AI_LOOPBACK_URL = 'http://127.0.0.1')
+	 * dev (e.g. wp-env: define PEDIMENT_AI_LOOPBACK_URL = 'http://127.0.0.1')
 	 * because the mapped host port is not reachable from inside the container.
 	 */
 	public function loopbackUrl(): string {
-		$base = defined( 'STARTER_AI_LOOPBACK_URL' ) ? (string) STARTER_AI_LOOPBACK_URL : home_url();
+		$base = defined( 'PEDIMENT_AI_LOOPBACK_URL' ) ? (string) PEDIMENT_AI_LOOPBACK_URL : home_url();
 		/**
 		 * Filter the loopback base URL used to run chat turns out-of-band.
 		 *
 		 * @param string $base Base origin, no trailing path.
 		 */
-		return (string) apply_filters( 'starter_ai_loopback_url', $base );
+		return (string) apply_filters( 'pediment_ai_loopback_url', $base );
 	}
 
 	public function dispatch( int $turn_id, string $token ): void {
 		$base = rtrim( $this->loopbackUrl(), '/' );
-		$url  = $base . '/?rest_route=' . rawurlencode( '/' . \StarterAi\Rest\ChatController::NS . '/chat/turns/' . $turn_id . '/run' );
+		$url  = $base . '/?rest_route=' . rawurlencode( '/' . \PedimentAi\Rest\ChatController::NS . '/chat/turns/' . $turn_id . '/run' );
 
 		$host = (string) wp_parse_url( home_url(), PHP_URL_HOST );
 
@@ -278,7 +278,7 @@ Expected: FAIL — `Call to undefined method ...::dispatch()`.
 			'blocking'  => false,
 			'sslverify' => false,
 			'headers'   => array_filter( [
-				'X-Starter-Ai-Token' => $token,
+				'X-Pediment-Ai-Token' => $token,
 				'Host'               => $host,
 			] ),
 			'body'      => [ 'turn_id' => $turn_id ],
@@ -309,10 +309,10 @@ git commit -m "feat(chat): non-blocking loopback dispatch with filterable URL"
 
 ```php
 <?php
-namespace StarterAi\Tests\Rest;
+namespace PedimentAi\Tests\Rest;
 
-use StarterAi\Chat\ConversationStore;
-use StarterAi\Chat\TurnDispatcher;
+use PedimentAi\Chat\ConversationStore;
+use PedimentAi\Chat\TurnDispatcher;
 
 class RunTurnRouteTest extends \WP_UnitTestCase {
 	private int $conv;
@@ -320,19 +320,19 @@ class RunTurnRouteTest extends \WP_UnitTestCase {
 
 	public function setUp(): void {
 		parent::setUp();
-		\starter_ai_install_tables();
-		( new \StarterAi\Rest\ChatController() )->register();
+		\pediment_ai_install_tables();
+		( new \PedimentAi\Rest\ChatController() )->register();
 		$store      = new ConversationStore();
 		$c          = $store->getOrCreate( 1, 1 );
 		$this->conv = $c['id'];
 		$store->appendUserMessage( $this->conv, 'create a landing page' );
 		$this->turn = $store->startAssistantTurn( $this->conv );
 		// Force the runner to use the deterministic mock provider.
-		add_filter( 'starter_ai_provider', fn() => new \StarterAi\Mock\MockProvider( STARTER_AI_PLUGIN_DIR . '/src/Mock/fixtures' ) );
+		add_filter( 'pediment_ai_provider', fn() => new \PedimentAi\Mock\MockProvider( PEDIMENT_AI_PLUGIN_DIR . '/src/Mock/fixtures' ) );
 	}
 
 	private function call( array $headers ): \WP_REST_Response {
-		$req = new \WP_REST_Request( 'POST', '/starter-ai/v1/chat/turns/' . $this->turn . '/run' );
+		$req = new \WP_REST_Request( 'POST', '/pediment-ai/v1/chat/turns/' . $this->turn . '/run' );
 		foreach ( $headers as $k => $v ) {
 			$req->set_header( $k, $v );
 		}
@@ -341,7 +341,7 @@ class RunTurnRouteTest extends \WP_UnitTestCase {
 
 	public function test_missing_or_wrong_token_is_rejected(): void {
 		$this->assertSame( 403, $this->call( [] )->get_status() );
-		$this->assertSame( 403, $this->call( [ 'X-Starter-Ai-Token' => 'nope' ] )->get_status() );
+		$this->assertSame( 403, $this->call( [ 'X-Pediment-Ai-Token' => 'nope' ] )->get_status() );
 	}
 
 	public function test_valid_token_runs_turn_once_and_is_idempotent(): void {
@@ -354,14 +354,14 @@ class RunTurnRouteTest extends \WP_UnitTestCase {
 			'block_tree'      => [],
 		] );
 
-		$first = $this->call( [ 'X-Starter-Ai-Token' => $token ] );
+		$first = $this->call( [ 'X-Pediment-Ai-Token' => $token ] );
 		$this->assertSame( 204, $first->get_status() );
 
 		$msg = ( new ConversationStore() )->getMessage( $this->turn );
 		$this->assertContains( $msg['status'], [ 'complete', 'error' ], 'turn actually ran' );
 
 		// Token consumed → a replay cannot run it again.
-		$replay = $this->call( [ 'X-Starter-Ai-Token' => $token ] );
+		$replay = $this->call( [ 'X-Pediment-Ai-Token' => $token ] );
 		$this->assertSame( 403, $replay->get_status() );
 	}
 }
@@ -387,8 +387,8 @@ Add these methods (place `permRunTurn` after `permTouchTurn`, `runTurn` after `a
 ```php
 	public function permRunTurn( \WP_REST_Request $r ): bool {
 		$turn_id = (int) $r->get_param( 'id' );
-		$token   = (string) $r->get_header( 'X-Starter-Ai-Token' );
-		return '' !== $token && ( new \StarterAi\Chat\TurnDispatcher() )->consumeToken( $turn_id, $token );
+		$token   = (string) $r->get_header( 'X-Pediment-Ai-Token' );
+		return '' !== $token && ( new \PedimentAi\Chat\TurnDispatcher() )->consumeToken( $turn_id, $token );
 	}
 
 	public function runTurn( \WP_REST_Request $r ): \WP_REST_Response {
@@ -401,7 +401,7 @@ Add these methods (place `permRunTurn` after `permTouchTurn`, `runTurn` after `a
 			return new \WP_REST_Response( null, 204 );
 		}
 
-		$input = ( new \StarterAi\Chat\TurnDispatcher() )->takeInput( $turn_id );
+		$input = ( new \PedimentAi\Chat\TurnDispatcher() )->takeInput( $turn_id );
 		if ( null === $input ) {
 			$store->fail( $turn_id, 'dispatch_lost', 'Turn inputs expired before the runner started.' );
 			return new \WP_REST_Response( null, 204 );
@@ -445,20 +445,20 @@ git commit -m "feat(chat): internal token-authed /run route, idempotent"
 
 ```php
 <?php
-namespace StarterAi\Tests\Rest;
+namespace PedimentAi\Tests\Rest;
 
-use StarterAi\Chat\ConversationStore;
+use PedimentAi\Chat\ConversationStore;
 
 class StartTurnDispatchTest extends \WP_UnitTestCase {
 	public function setUp(): void {
 		parent::setUp();
-		\starter_ai_install_tables();
-		( new \StarterAi\Rest\ChatController() )->register();
+		\pediment_ai_install_tables();
+		( new \PedimentAi\Rest\ChatController() )->register();
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
 	}
 
 	private function start( int $post_id, int $conv ): \WP_REST_Response {
-		$req = new \WP_REST_Request( 'POST', '/starter-ai/v1/chat/turns' );
+		$req = new \WP_REST_Request( 'POST', '/pediment-ai/v1/chat/turns' );
 		$req->set_body_params( [
 			'post_id'         => $post_id,
 			'conversation_id' => $conv,
@@ -493,14 +493,14 @@ class StartTurnDispatchTest extends \WP_UnitTestCase {
 	public function test_inline_mode_runs_synchronously(): void {
 		$post = self::factory()->post->create();
 		$conv = ( new ConversationStore() )->getOrCreate( $post, get_current_user_id() )['id'];
-		add_filter( 'starter_ai_dispatch_mode', fn() => 'inline' );
-		add_filter( 'starter_ai_provider', fn() => new \StarterAi\Mock\MockProvider( STARTER_AI_PLUGIN_DIR . '/src/Mock/fixtures' ) );
+		add_filter( 'pediment_ai_dispatch_mode', fn() => 'inline' );
+		add_filter( 'pediment_ai_provider', fn() => new \PedimentAi\Mock\MockProvider( PEDIMENT_AI_PLUGIN_DIR . '/src/Mock/fixtures' ) );
 
 		$res     = $this->start( $post, $conv );
 		$turn_id = $res->get_data()['turn_id'];
 
-		remove_all_filters( 'starter_ai_dispatch_mode' );
-		remove_all_filters( 'starter_ai_provider' );
+		remove_all_filters( 'pediment_ai_dispatch_mode' );
+		remove_all_filters( 'pediment_ai_provider' );
 		$this->assertSame( 202, $res->get_status() );
 		$this->assertContains(
 			( new ConversationStore() )->getMessage( $turn_id )['status'],
@@ -520,7 +520,7 @@ Expected: FAIL — `test_auto_...` fails because current `startTurn` runs inline
 
 Replace `startTurn` body from `$response = new \WP_REST_Response(...)` (`ChatController.php:119`) through the end of the method with:
 ```php
-		$dispatcher = new \StarterAi\Chat\TurnDispatcher();
+		$dispatcher = new \PedimentAi\Chat\TurnDispatcher();
 		/**
 		 * Dispatch mode: 'auto' (non-blocking loopback; streams) or 'inline'
 		 * (run synchronously before responding; no streaming, but needs no
@@ -528,7 +528,7 @@ Replace `startTurn` body from `$response = new \WP_REST_Response(...)` (`ChatCon
 		 *
 		 * @param string $mode
 		 */
-		$mode = (string) apply_filters( 'starter_ai_dispatch_mode', 'auto' );
+		$mode = (string) apply_filters( 'pediment_ai_dispatch_mode', 'auto' );
 
 		if ( 'inline' === $mode ) {
 			$this->processTurn( $turn_id, $conversation_id, $tree, $selected, $message );
@@ -554,8 +554,8 @@ Run: same as Step 2. Expected: PASS (2 tests).
 
 - [ ] **Step 5: Run the full plugin suite (no regressions)**
 
-Run: `cd /Users/jonas/Entwicklung/wp-starter-child-theme && npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/wp-starter-ai vendor/bin/phpunit`
-Expected: 0 failures. Pre-existing 2 `OptionsStore` skips are unrelated. If any prior test asserted the old synchronous `startTurn`/`canDeferResponse` behavior, update it to set `add_filter('starter_ai_dispatch_mode', fn()=>'inline')` in its setUp and note the change in the commit body.
+Run: `cd /Users/jonas/Entwicklung/pediment-child-theme && npx wp-env run tests-wordpress --env-cwd=wp-content/plugins/pediment-ai vendor/bin/phpunit`
+Expected: 0 failures. Pre-existing 2 `OptionsStore` skips are unrelated. If any prior test asserted the old synchronous `startTurn`/`canDeferResponse` behavior, update it to set `add_filter('pediment_ai_dispatch_mode', fn()=>'inline')` in its setUp and note the change in the commit body.
 
 - [ ] **Step 6: Commit**
 
@@ -573,7 +573,7 @@ git commit -m "feat(chat): async loopback dispatch with inline fallback; drop fa
 
 - [ ] **Step 1: Run lint gate**
 
-Run: `cd /Users/jonas/Entwicklung/wp-starter-ai && composer lint`
+Run: `cd /Users/jonas/Entwicklung/pediment-ai && composer lint`
 Expected: exit 0 (warnings-only acceptable, matching the rest of the codebase). Fix any ERROR (e.g. deprecated functions) in the new files.
 
 - [ ] **Step 2: Document the new filters/constant** — append to `docs/extending.md`:
@@ -587,14 +587,14 @@ browser can poll and see streaming. Controls:
 ```php
 // Force synchronous execution (no streaming) — for hosts where loopback
 // is blocked. Default is 'auto' (loopback).
-add_filter( 'starter_ai_dispatch_mode', fn() => 'inline' );
+add_filter( 'pediment_ai_dispatch_mode', fn() => 'inline' );
 
 // Override the loopback origin. Needed in containers (e.g. wp-env) where
 // the public host:port is not reachable from inside the container.
-add_filter( 'starter_ai_loopback_url', fn() => 'http://127.0.0.1' );
+add_filter( 'pediment_ai_loopback_url', fn() => 'http://127.0.0.1' );
 ```
 
-Or define `STARTER_AI_LOOPBACK_URL` (constant) for the same effect without a
+Or define `PEDIMENT_AI_LOOPBACK_URL` (constant) for the same effect without a
 filter — preferred for wp-env via `.wp-env.override.json`.
 ````
 
@@ -610,24 +610,24 @@ git commit -m "docs(extending): document dispatch mode + loopback URL controls"
 ## Task 7: wp-env wiring + end-to-end streaming verification
 
 **Files:**
-- Modify: `/Users/jonas/Entwicklung/wp-starter-child-theme/.wp-env.override.json` (gitignored — local only)
+- Modify: `/Users/jonas/Entwicklung/pediment-child-theme/.wp-env.override.json` (gitignored — local only)
 
 - [ ] **Step 1: Point the loopback at the container's own Apache**
 
-Merge into `wp-starter-child-theme/.wp-env.override.json` `config` block (preserve the existing `ANTHROPIC_API_KEY`):
+Merge into `pediment-child-theme/.wp-env.override.json` `config` block (preserve the existing `ANTHROPIC_API_KEY`):
 ```json
 {
   "config": {
     "ANTHROPIC_API_KEY": "<existing value — do not change>",
-    "STARTER_AI_LOOPBACK_URL": "http://127.0.0.1"
+    "PEDIMENT_AI_LOOPBACK_URL": "http://127.0.0.1"
   }
 }
 ```
 
 - [ ] **Step 2: Apply config (regenerates wp-config, no DB wipe)**
 
-Run: `cd /Users/jonas/Entwicklung/wp-starter-child-theme && npm run env:start`
-Then confirm: `npx wp-env run cli wp eval 'echo defined("STARTER_AI_LOOPBACK_URL") ? STARTER_AI_LOOPBACK_URL : "UNSET";'`
+Run: `cd /Users/jonas/Entwicklung/pediment-child-theme && npm run env:start`
+Then confirm: `npx wp-env run cli wp eval 'echo defined("PEDIMENT_AI_LOOPBACK_URL") ? PEDIMENT_AI_LOOPBACK_URL : "UNSET";'`
 Expected: `http://127.0.0.1`.
 
 - [ ] **Step 3: Merge the worktree back to `development`, rebuild, then verify on the user's main checkout**
@@ -638,13 +638,13 @@ Per worktree policy: run automated checks in the worktree, merge to `development
 
 After a fresh turn, run:
 ```bash
-cd /Users/jonas/Entwicklung/wp-starter-child-theme
+cd /Users/jonas/Entwicklung/pediment-child-theme
 npx wp-env run cli wp eval '
 $w=$GLOBALS["wpdb"];
-$r=$w->get_row("SELECT id,status,created_at,updated_at,CHAR_LENGTH(content) c FROM wp_starter_ai_chat_messages WHERE role=\"assistant\" ORDER BY id DESC LIMIT 1",ARRAY_A);
+$r=$w->get_row("SELECT id,status,created_at,updated_at,CHAR_LENGTH(content) c FROM wp_pediment_ai_chat_messages WHERE role=\"assistant\" ORDER BY id DESC LIMIT 1",ARRAY_A);
 echo "turn={$r["id"]} status={$r["status"]} created={$r["created_at"]} updated={$r["updated_at"]} content_len={$r["c"]}\n";'
 ```
-Expected (streaming working): the row reaches `status=streaming` with growing `content` while the turn runs, and `updated_at` is seconds later than `created_at` — i.e. the runner request executed separately while `startTurn` already returned. If `created_at == updated_at` and content only appears at the end, loopback did not reach the runner: re-check `STARTER_AI_LOOPBACK_URL` and that `127.0.0.1:80` serves WP inside the container (`npx wp-env run cli curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1/?rest_route=/`).
+Expected (streaming working): the row reaches `status=streaming` with growing `content` while the turn runs, and `updated_at` is seconds later than `created_at` — i.e. the runner request executed separately while `startTurn` already returned. If `created_at == updated_at` and content only appears at the end, loopback did not reach the runner: re-check `PEDIMENT_AI_LOOPBACK_URL` and that `127.0.0.1:80` serves WP inside the container (`npx wp-env run cli curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1/?rest_route=/`).
 
 - [ ] **Step 5: No commit** — `.wp-env.override.json` is gitignored (local dev only). Note completion to the user.
 
@@ -657,13 +657,13 @@ Expected (streaming working): the row reaches `status=streaming` with growing `c
 - "turn runs in a separate request, poller streams" → Task 4 `/run` + Task 3 non-blocking loopback ✓
 - "works on mod_php and FPM" → loopback is SAPI-independent; fastcgi path removed (Task 5) ✓
 - "no browser-SSE; keep poll architecture" → no frontend change; poller untouched ✓
-- "graceful fallback when loopback unavailable" → `starter_ai_dispatch_mode=inline` (Task 5, Task 6 docs) ✓
+- "graceful fallback when loopback unavailable" → `pediment_ai_dispatch_mode=inline` (Task 5, Task 6 docs) ✓
 - "auth + no double-run" → one-time token (Task 1) + status-guard idempotency (Task 4) ✓
 - "wp-env loopback gotcha" → filterable URL + constant + Task 7 wiring/verification ✓
 - "no schema/migration" → transients only; worktree-safe (header) ✓
 
 **Placeholder scan:** No TBD/TODO; every code step is complete; every command has an expected result. The one conditional ("if a prior test asserted old behavior, set inline filter") is an explicit, bounded instruction, not a hidden gap.
 
-**Type/name consistency:** `TurnDispatcher` methods — `mintToken`/`consumeToken` (Task 1), `stashInput`/`takeInput` (Task 2), `dispatch`/`loopbackUrl` (Task 3) — used identically in Tasks 4 & 5. Route `'/chat/turns/(?P<id>\d+)/run'` and header `X-Starter-Ai-Token` consistent across Tasks 3, 4. Transient key prefixes (`starter_ai_turn_token_`, `starter_ai_turn_input_`) defined once in Task 1/2 and not reused elsewhere. `starter_ai_dispatch_mode` / `starter_ai_loopback_url` / `STARTER_AI_LOOPBACK_URL` consistent across Tasks 3, 5, 6, 7.
+**Type/name consistency:** `TurnDispatcher` methods — `mintToken`/`consumeToken` (Task 1), `stashInput`/`takeInput` (Task 2), `dispatch`/`loopbackUrl` (Task 3) — used identically in Tasks 4 & 5. Route `'/chat/turns/(?P<id>\d+)/run'` and header `X-Pediment-Ai-Token` consistent across Tasks 3, 4. Transient key prefixes (`pediment_ai_turn_token_`, `pediment_ai_turn_input_`) defined once in Task 1/2 and not reused elsewhere. `pediment_ai_dispatch_mode` / `pediment_ai_loopback_url` / `PEDIMENT_AI_LOOPBACK_URL` consistent across Tasks 3, 5, 6, 7.
 
 **Open risk flagged for execution:** `ConversationStore::startAssistantTurn` must create the row with status `'streaming'` for the Task 4 idempotency guard and the Task 5 `test_auto_...` assertion. Verify that literal at execution start; if it is e.g. `'pending'`, substitute the actual value in the Task 4 guard and the Task 5 test.

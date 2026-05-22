@@ -1,8 +1,8 @@
 <?php
 /**
- * Database table installer for the Starter AI plugin.
+ * Database table installer for the Pediment AI plugin.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
@@ -12,15 +12,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Creates (or upgrades) the wp_starter_ai_jobs and wp_starter_ai_usage tables.
+ * Creates (or upgrades) the wp_pediment_ai_jobs and wp_pediment_ai_usage tables.
  */
-function starter_ai_install_tables(): void {
+function pediment_ai_install_tables(): void {
 	global $wpdb;
 	require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
 	$charset = $wpdb->get_charset_collate();
-	$jobs    = $wpdb->prefix . 'starter_ai_jobs';
-	$usage   = $wpdb->prefix . 'starter_ai_usage';
+	$jobs    = $wpdb->prefix . 'pediment_ai_jobs';
+	$usage   = $wpdb->prefix . 'pediment_ai_usage';
 
 	$sql_jobs = "CREATE TABLE {$jobs} (
 		id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -58,8 +58,8 @@ function starter_ai_install_tables(): void {
 	dbDelta( $sql_jobs );
 	dbDelta( $sql_usage );
 
-	$conv = $wpdb->prefix . 'starter_ai_chat_conversations';
-	$msgs = $wpdb->prefix . 'starter_ai_chat_messages';
+	$conv = $wpdb->prefix . 'pediment_ai_chat_conversations';
+	$msgs = $wpdb->prefix . 'pediment_ai_chat_messages';
 
 	$sql_conv = "CREATE TABLE {$conv} (
 		id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -88,5 +88,5 @@ function starter_ai_install_tables(): void {
 	dbDelta( $sql_conv );
 	dbDelta( $sql_msgs );
 
-	update_option( 'starter_ai_db_version', STARTER_AI_VERSION );
+	update_option( 'pediment_ai_db_version', PEDIMENT_AI_VERSION );
 }

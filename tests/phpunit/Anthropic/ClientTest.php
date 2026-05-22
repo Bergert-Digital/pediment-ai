@@ -1,7 +1,7 @@
 <?php
-namespace StarterAi\Tests\Anthropic;
+namespace PedimentAi\Tests\Anthropic;
 
-use StarterAi\Anthropic\Client;
+use PedimentAi\Anthropic\Client;
 
 class ClientTest extends \WP_UnitTestCase {
 	public function setUp(): void {
@@ -78,7 +78,7 @@ class ClientTest extends \WP_UnitTestCase {
 		$result = $client->messages( [ 'model' => 'bad', 'max_tokens' => 1, 'messages' => [] ] );
 
 		$this->assertInstanceOf( \WP_Error::class, $result );
-		$this->assertSame( 'starter_ai_anthropic_400', $result->get_error_code() );
+		$this->assertSame( 'pediment_ai_anthropic_400', $result->get_error_code() );
 		$data = $result->get_error_data();
 		$this->assertSame( 'invalid_request_error', $data['error_type'] );
 	}

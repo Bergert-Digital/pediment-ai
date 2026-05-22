@@ -2,12 +2,12 @@
 /**
  * Extracts emit_page / emit_block tool calls and web_fetch URLs from an Anthropic response.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\Anthropic;
+namespace PedimentAi\Anthropic;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;

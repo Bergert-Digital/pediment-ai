@@ -1,13 +1,13 @@
 <?php
-namespace StarterAi\Tests\Chat;
+namespace PedimentAi\Tests\Chat;
 
-use StarterAi\Chat\ConversationStore;
-use StarterAi\Chat\PromptBuilder;
-use StarterAi\Chat\Tools;
-use StarterAi\Chat\TurnRunner;
-use StarterAi\Chat\VirtualTree;
-use StarterAi\BlockTree\Validator;
-use StarterAi\Mock\MockProvider;
+use PedimentAi\Chat\ConversationStore;
+use PedimentAi\Chat\PromptBuilder;
+use PedimentAi\Chat\Tools;
+use PedimentAi\Chat\TurnRunner;
+use PedimentAi\Chat\VirtualTree;
+use PedimentAi\BlockTree\Validator;
+use PedimentAi\Mock\MockProvider;
 
 class TurnRunnerTest extends \WP_UnitTestCase {
 	private ConversationStore $store;
@@ -17,16 +17,16 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 
 	public function setUp(): void {
 		parent::setUp();
-		\starter_ai_install_tables();
+		\pediment_ai_install_tables();
 		global $wpdb;
-		$wpdb->query( "TRUNCATE {$wpdb->prefix}starter_ai_chat_conversations" );
-		$wpdb->query( "TRUNCATE {$wpdb->prefix}starter_ai_chat_messages" );
+		$wpdb->query( "TRUNCATE {$wpdb->prefix}pediment_ai_chat_conversations" );
+		$wpdb->query( "TRUNCATE {$wpdb->prefix}pediment_ai_chat_messages" );
 
 		$schema         = [ 'core/paragraph' => [ 'attributes' => [], 'allowsInnerBlocks' => false ] ];
 		$this->store    = new ConversationStore();
 		$this->tools    = new Tools( $schema, new Validator( $schema ) );
 		$this->prompts  = new PromptBuilder( $schema );
-		$this->provider = new MockProvider( STARTER_AI_PLUGIN_DIR . '/src/Mock/fixtures' );
+		$this->provider = new MockProvider( PEDIMENT_AI_PLUGIN_DIR . '/src/Mock/fixtures' );
 	}
 
 	public function test_run_records_text_delta_and_one_tool_call(): void {
@@ -53,7 +53,7 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 		$conv     = $this->store->getOrCreate( 1, 1 );
 		$turn_id  = $this->store->startAssistantTurn( $conv['id'] );
 
-		$broken = new class implements \StarterAi\Anthropic\ProviderInterface {
+		$broken = new class implements \PedimentAi\Anthropic\ProviderInterface {
 			public function messages( array $args ) { return new \WP_Error( 'down', 'Down' ); }
 			public function stream_messages( array $args ) { return new \WP_Error( 'down', 'Down' ); }
 		};
@@ -96,7 +96,7 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 	 * then a final text + end_turn. Records the args of the last call.
 	 */
 	private function fakeProvider( int $toolRounds ) {
-		return new class( $toolRounds ) implements \StarterAi\Anthropic\ProviderInterface {
+		return new class( $toolRounds ) implements \PedimentAi\Anthropic\ProviderInterface {
 			public int $calls      = 0;
 			public array $lastArgs = [];
 			public function __construct( private int $toolRounds ) {}
@@ -149,7 +149,7 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 		$turn_id  = $this->store->startAssistantTurn( $conv['id'] );
 		$provider = $this->fakeProvider( 5 );
 
-		add_filter( 'starter_ai_max_iterations', static fn() => 2 );
+		add_filter( 'pediment_ai_max_iterations', static fn() => 2 );
 		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $provider, 'm' );
 		$runner->run(
 			turn_id:        $turn_id,
@@ -158,7 +158,7 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 			selectedId:     null,
 			currentUserMsg: 'go'
 		);
-		remove_all_filters( 'starter_ai_max_iterations' );
+		remove_all_filters( 'pediment_ai_max_iterations' );
 
 		$msg = $this->store->getMessage( $turn_id );
 		$this->assertSame( 'error', $msg['status'] );
@@ -171,7 +171,7 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 		$turn_id  = $this->store->startAssistantTurn( $conv['id'] );
 		$provider = $this->fakeProvider( 0 ); // immediate end_turn.
 
-		add_filter( 'starter_ai_max_tokens', static fn() => 12345 );
+		add_filter( 'pediment_ai_max_tokens', static fn() => 12345 );
 		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $provider, 'm' );
 		$runner->run(
 			turn_id:        $turn_id,
@@ -180,7 +180,7 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 			selectedId:     null,
 			currentUserMsg: 'hi'
 		);
-		remove_all_filters( 'starter_ai_max_tokens' );
+		remove_all_filters( 'pediment_ai_max_tokens' );
 
 		$this->assertSame( 12345, $provider->lastArgs['max_tokens'] );
 	}
@@ -192,7 +192,7 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 		// Call 1: text + one complete tool_use + one truncated tool_use (start/stop,
 		// no input deltas) + stop_reason=max_tokens. Call 2: reject if any tool_use
 		// sent back has non-object input (reproduces the real Anthropic 400), else end.
-		$provider = new class implements \StarterAi\Anthropic\ProviderInterface {
+		$provider = new class implements \PedimentAi\Anthropic\ProviderInterface {
 			public int $calls = 0;
 			public function messages( array $args ) {
 				return new \WP_Error( 'unused', 'unused' );
@@ -220,7 +220,7 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 						if ( 'tool_use' === ( $b['type'] ?? '' ) ) {
 							$in = $b['input'] ?? null;
 							if ( ! is_array( $in ) || [] === $in ) {
-								return new \WP_Error( 'starter_ai_anthropic_400', 'tool_use.input: Input should be an object' );
+								return new \WP_Error( 'pediment_ai_anthropic_400', 'tool_use.input: Input should be an object' );
 							}
 						}
 					}
@@ -255,7 +255,7 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 		$turn_id = $this->store->startAssistantTurn( $conv['id'] );
 
 		// Only a truncated tool_use, no text, no complete calls → nothing valid to send.
-		$provider = new class implements \StarterAi\Anthropic\ProviderInterface {
+		$provider = new class implements \PedimentAi\Anthropic\ProviderInterface {
 			public int $calls = 0;
 			public function messages( array $args ) {
 				return new \WP_Error( 'unused', 'unused' );

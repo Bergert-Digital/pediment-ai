@@ -1,7 +1,7 @@
 <?php
-namespace StarterAi\Tests\Anthropic;
+namespace PedimentAi\Tests\Anthropic;
 
-use StarterAi\Anthropic\Client;
+use PedimentAi\Anthropic\Client;
 
 class ClientStreamTest extends \WP_UnitTestCase {
 	public function test_stream_messages_parses_sse_events(): void {

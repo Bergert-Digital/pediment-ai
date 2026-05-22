@@ -6,8 +6,8 @@
 
 **Architecture:** Two `apply_filters()` wrappers around existing logic. No structural change.
 
-- `starter_ai_block_namespaces` — defaults to `['starter', 'client']`, used to build the namespace regex in `SchemaBuilder::build()`.
-- `starter_ai_system_prompt` — wraps the return value of `PromptBuilder::systemPrompt()`, receives the prompt string and the block schema as parameters.
+- `pediment_ai_block_namespaces` — defaults to `['pediment', 'client']`, used to build the namespace regex in `SchemaBuilder::build()`.
+- `pediment_ai_system_prompt` — wraps the return value of `PromptBuilder::systemPrompt()`, receives the prompt string and the block schema as parameters.
 
 **Tech Stack:** PHP 8.1+, WordPress 6.5+, PHPUnit + `WP_UnitTestCase`.
 
@@ -22,7 +22,7 @@
 
 ---
 
-## Task 1: Add failing test for `starter_ai_block_namespaces` filter
+## Task 1: Add failing test for `pediment_ai_block_namespaces` filter
 
 **Files:**
 - Modify: `tests/phpunit/Anthropic/SchemaBuilderTest.php`
@@ -37,7 +37,7 @@ Add inside the existing test class:
 
 ```php
 public function test_block_namespaces_filter_extends_allowlist() {
-    \StarterAi\Anthropic\SchemaBuilder::invalidate();
+    \PedimentAi\Anthropic\SchemaBuilder::invalidate();
 
     register_block_type(
         'acme/promo-banner',
@@ -47,12 +47,12 @@ public function test_block_namespaces_filter_extends_allowlist() {
         )
     );
 
-    add_filter( 'starter_ai_block_namespaces', function ( $namespaces ) {
+    add_filter( 'pediment_ai_block_namespaces', function ( $namespaces ) {
         $namespaces[] = 'acme';
         return $namespaces;
     } );
 
-    $schema = ( new \StarterAi\Anthropic\SchemaBuilder() )->build( true );
+    $schema = ( new \PedimentAi\Anthropic\SchemaBuilder() )->build( true );
 
     $this->assertArrayHasKey( 'acme/promo-banner', $schema['blocks'] );
     $this->assertSame( 'A promotional banner.', $schema['blocks']['acme/promo-banner']['description'] );
@@ -61,7 +61,7 @@ public function test_block_namespaces_filter_extends_allowlist() {
 }
 
 public function test_block_namespaces_default_excludes_unknown_namespaces() {
-    \StarterAi\Anthropic\SchemaBuilder::invalidate();
+    \PedimentAi\Anthropic\SchemaBuilder::invalidate();
 
     register_block_type(
         'thirdparty/widget',
@@ -71,7 +71,7 @@ public function test_block_namespaces_default_excludes_unknown_namespaces() {
         )
     );
 
-    $schema = ( new \StarterAi\Anthropic\SchemaBuilder() )->build( true );
+    $schema = ( new \PedimentAi\Anthropic\SchemaBuilder() )->build( true );
 
     $this->assertArrayNotHasKey( 'thirdparty/widget', $schema['blocks'] );
 
@@ -82,14 +82,14 @@ public function test_block_namespaces_default_excludes_unknown_namespaces() {
 - [ ] **Step 3: Run the test to verify the filter test fails**
 
 Run: `vendor/bin/phpunit --filter test_block_namespaces_filter_extends_allowlist`
-Expected: FAIL — `acme/promo-banner` is not in the schema because the regex `'#^(starter|client)/#'` is hardcoded.
+Expected: FAIL — `acme/promo-banner` is not in the schema because the regex `'#^(pediment|client)/#'` is hardcoded.
 
 Run: `vendor/bin/phpunit --filter test_block_namespaces_default_excludes_unknown_namespaces`
 Expected: PASS — establishes the baseline behavior we preserve.
 
 ---
 
-## Task 2: Implement `starter_ai_block_namespaces` filter
+## Task 2: Implement `pediment_ai_block_namespaces` filter
 
 **Files:**
 - Modify: `src/Anthropic/SchemaBuilder.php` (line 82)
@@ -100,7 +100,7 @@ In `src/Anthropic/SchemaBuilder.php`, find:
 
 ```php
 foreach ( $registry->get_all_registered() as $name => $type ) {
-    if ( ! preg_match( '#^(starter|client)/#', (string) $name ) ) {
+    if ( ! preg_match( '#^(pediment|client)/#', (string) $name ) ) {
         continue;
     }
 ```
@@ -113,7 +113,7 @@ Replace with:
  *
  * @param array<int,string> $namespaces Namespace prefixes (without trailing slash).
  */
-$namespaces = (array) apply_filters( 'starter_ai_block_namespaces', array( 'starter', 'client' ) );
+$namespaces = (array) apply_filters( 'pediment_ai_block_namespaces', array( 'pediment', 'client' ) );
 $pattern    = '#^(' . implode( '|', array_map( 'preg_quote', $namespaces ) ) . ')/#';
 
 foreach ( $registry->get_all_registered() as $name => $type ) {
@@ -136,12 +136,12 @@ Expected: All Anthropic tests pass — `ClientStreamTest`, `ClientTest`, `Schema
 
 ```bash
 git add src/Anthropic/SchemaBuilder.php tests/phpunit/Anthropic/SchemaBuilderTest.php
-git commit -m "feat(schema): make AI block namespaces filterable via starter_ai_block_namespaces"
+git commit -m "feat(schema): make AI block namespaces filterable via pediment_ai_block_namespaces"
 ```
 
 ---
 
-## Task 3: Add failing test for `starter_ai_system_prompt` filter
+## Task 3: Add failing test for `pediment_ai_system_prompt` filter
 
 **Files:**
 - Modify: `tests/phpunit/Chat/PromptBuilderTest.php`
@@ -156,14 +156,14 @@ Add inside the existing test class:
 
 ```php
 public function test_system_prompt_is_filterable() {
-    add_filter( 'starter_ai_system_prompt', function ( $prompt, $schema ) {
+    add_filter( 'pediment_ai_system_prompt', function ( $prompt, $schema ) {
         $this->assertIsString( $prompt );
         $this->assertIsArray( $schema );
         return $prompt . "\n\nAcme brand voice: confident and concise.";
     }, 10, 2 );
 
-    $builder = new \StarterAi\Chat\PromptBuilder( array(
-        'starter/hero' => array(
+    $builder = new \PedimentAi\Chat\PromptBuilder( array(
+        'pediment/hero' => array(
             'description'       => 'A hero block.',
             'attributes'        => array(),
             'allowsInnerBlocks' => false,
@@ -173,7 +173,7 @@ public function test_system_prompt_is_filterable() {
     $prompt = $builder->systemPrompt();
 
     $this->assertStringContainsString( 'Acme brand voice: confident and concise.', $prompt );
-    $this->assertStringContainsString( 'starter/hero', $prompt, 'Original prompt content must still be present.' );
+    $this->assertStringContainsString( 'pediment/hero', $prompt, 'Original prompt content must still be present.' );
 }
 ```
 
@@ -184,7 +184,7 @@ Expected: FAIL — the filter is never applied, so `Acme brand voice` is not in 
 
 ---
 
-## Task 4: Implement `starter_ai_system_prompt` filter
+## Task 4: Implement `pediment_ai_system_prompt` filter
 
 **Files:**
 - Modify: `src/Chat/PromptBuilder.php` (line 34)
@@ -219,7 +219,7 @@ to:
      * @param string                              $prompt      Composed system prompt.
      * @param array<string,array<string,mixed>>   $blockSchema The block schema available to this turn.
      */
-    return (string) apply_filters( 'starter_ai_system_prompt', $prompt, $this->blockSchema );
+    return (string) apply_filters( 'pediment_ai_system_prompt', $prompt, $this->blockSchema );
 }
 ```
 
@@ -237,7 +237,7 @@ Expected: All Chat tests pass — `ConversationStoreTest`, `PromptBuilderTest`, 
 
 ```bash
 git add src/Chat/PromptBuilder.php tests/phpunit/Chat/PromptBuilderTest.php
-git commit -m "feat(prompt): expose starter_ai_system_prompt filter for child-theme customization"
+git commit -m "feat(prompt): expose pediment_ai_system_prompt filter for child-theme customization"
 ```
 
 ---
@@ -258,29 +258,29 @@ If a doc named `extending.md`, `filters.md`, or similar exists, extend it. Other
 Add the following content (either appended to an existing doc or as the body of `docs/extending.md`):
 
 ````markdown
-# Extending wp-starter-ai from a child theme
+# Extending pediment-ai from a child theme
 
 The plugin exposes filters so a child theme can register blocks under its own namespace and customize the system prompt without forking the plugin.
 
 ## Block discovery namespaces
 
-By default the plugin discovers blocks under the `starter/` and `client/` namespaces. To allow an additional namespace:
+By default the plugin discovers blocks under the `pediment/` and `client/` namespaces. To allow an additional namespace:
 
 ```php
-add_filter( 'starter_ai_block_namespaces', function ( $namespaces ) {
+add_filter( 'pediment_ai_block_namespaces', function ( $namespaces ) {
     $namespaces[] = 'acme';
     return $namespaces;
 } );
 ```
 
-Blocks under `acme/*` registered with a non-empty `description` will then appear in the AI's block schema. Remember to call `\StarterAi\Anthropic\SchemaBuilder::invalidate()` after changing the filter at runtime (e.g. in tests).
+Blocks under `acme/*` registered with a non-empty `description` will then appear in the AI's block schema. Remember to call `\PedimentAi\Anthropic\SchemaBuilder::invalidate()` after changing the filter at runtime (e.g. in tests).
 
 ## System prompt
 
 Wrap the prompt to inject brand voice, domain examples, or extra constraints:
 
 ```php
-add_filter( 'starter_ai_system_prompt', function ( $prompt, $schema ) {
+add_filter( 'pediment_ai_system_prompt', function ( $prompt, $schema ) {
     return $prompt . "\n\nBrand voice: confident, concise, no marketing fluff.";
 }, 10, 2 );
 ```
@@ -292,7 +292,7 @@ The filter receives the composed prompt and the block schema (so you can inspect
 
 ```bash
 git add docs/
-git commit -m "docs(extending): document starter_ai_block_namespaces and starter_ai_system_prompt filters"
+git commit -m "docs(extending): document pediment_ai_block_namespaces and pediment_ai_system_prompt filters"
 ```
 
 ---
@@ -300,7 +300,7 @@ git commit -m "docs(extending): document starter_ai_block_namespaces and starter
 ## Self-review checklist (run before handing off)
 
 - [ ] `vendor/bin/phpunit` passes end-to-end (whole suite, not just filtered tests).
-- [ ] No hardcoded `(starter|client)` regex remains in `src/Anthropic/SchemaBuilder.php`.
+- [ ] No hardcoded `(pediment|client)` regex remains in `src/Anthropic/SchemaBuilder.php`.
 - [ ] `PromptBuilder::systemPrompt()` returns through `apply_filters`.
 - [ ] Tests cover: filter adds a namespace, default namespace allowlist still excludes unknown namespaces, filter modifies the prompt while preserving the original content.
 - [ ] No changes outside `src/Anthropic/SchemaBuilder.php`, `src/Chat/PromptBuilder.php`, the two test files, and the docs file.

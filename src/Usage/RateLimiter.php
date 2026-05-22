@@ -2,12 +2,12 @@
 /**
  * Per-user, per-kind rate limiter backed by WP transients.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\Usage;
+namespace PedimentAi\Usage;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -41,6 +41,6 @@ final class RateLimiter {
 	}
 
 	private function key( int $user_id, string $kind ): string {
-		return "starter_ai_rl_{$user_id}_{$kind}";
+		return "pediment_ai_rl_{$user_id}_{$kind}";
 	}
 }

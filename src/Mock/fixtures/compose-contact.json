@@ -3,8 +3,8 @@
   "usage": { "input_tokens": 0, "output_tokens": 0 },
   "content": [
     { "type": "tool_use", "id": "tu_mock_contact", "name": "emit_page", "input": { "blocks": [
-      { "name": "starter/hero", "attributes": { "variant": "centered", "headline": "Contact", "subheadline": "Tell us about your project." }, "innerBlocks": [] },
-      { "name": "starter/contact-form", "attributes": { "includePhone": true }, "innerBlocks": [] }
+      { "name": "pediment/hero", "attributes": { "variant": "centered", "headline": "Contact", "subheadline": "Tell us about your project." }, "innerBlocks": [] },
+      { "name": "pediment/contact-form", "attributes": { "includePhone": true }, "innerBlocks": [] }
     ] } }
   ]
 }

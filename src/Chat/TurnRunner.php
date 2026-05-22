@@ -2,14 +2,14 @@
 /**
  * Orchestrates the Anthropic iterative tool-use loop for one chat turn.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\Chat;
+namespace PedimentAi\Chat;
 
-use StarterAi\Anthropic\ProviderInterface;
+use PedimentAi\Anthropic\ProviderInterface;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -59,7 +59,7 @@ final class TurnRunner {
 		 *
 		 * @param int $max Default self::MAX_ITERATIONS.
 		 */
-		$max_iterations = (int) apply_filters( 'starter_ai_max_iterations', self::MAX_ITERATIONS );
+		$max_iterations = (int) apply_filters( 'pediment_ai_max_iterations', self::MAX_ITERATIONS );
 
 		/**
 		 * Filter the per-call max output tokens sent to the model.
@@ -69,7 +69,7 @@ final class TurnRunner {
 		 *
 		 * @param int $max Default self::MAX_TOKENS.
 		 */
-		$max_tokens = (int) apply_filters( 'starter_ai_max_tokens', self::MAX_TOKENS );
+		$max_tokens = (int) apply_filters( 'pediment_ai_max_tokens', self::MAX_TOKENS );
 
 		for ( $i = 0; $i < $max_iterations; $i++ ) {
 			if ( $this->store->isAborted( $turn_id ) ) {

@@ -3,5 +3,5 @@ import DocumentPanel from './DocumentPanel';
 import BlockChatPanel from './BlockChatPanel';
 import './styles.scss';
 
-registerPlugin('starter-ai-document-panel', { render: DocumentPanel });
-registerPlugin('starter-ai-block-chat',     { render: BlockChatPanel });
+registerPlugin('pediment-ai-document-panel', { render: DocumentPanel });
+registerPlugin('pediment-ai-block-chat',     { render: BlockChatPanel });

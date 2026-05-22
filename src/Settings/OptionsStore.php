@@ -1,23 +1,23 @@
 <?php
 /**
- * Encrypted settings store for the Starter AI plugin.
+ * Encrypted settings store for the Pediment AI plugin.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\Settings;
+namespace PedimentAi\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
 /**
- * Wraps the `starter_ai_settings` option; encrypts the API key at rest.
+ * Wraps the `pediment_ai_settings` option; encrypts the API key at rest.
  */
 final class OptionsStore {
-	public const OPTION = 'starter_ai_settings';
+	public const OPTION = 'pediment_ai_settings';
 
 	public function getApiKey(): string {
 		if ( defined( 'ANTHROPIC_API_KEY' ) && '' !== (string) ANTHROPIC_API_KEY ) {
@@ -79,6 +79,6 @@ final class OptionsStore {
 	}
 
 	private function cipherKey(): string {
-		return substr( hash( 'sha256', wp_salt( 'auth' ) . '|starter-ai', true ), 0, SODIUM_CRYPTO_SECRETBOX_KEYBYTES );
+		return substr( hash( 'sha256', wp_salt( 'auth' ) . '|pediment-ai', true ), 0, SODIUM_CRYPTO_SECRETBOX_KEYBYTES );
 	}
 }

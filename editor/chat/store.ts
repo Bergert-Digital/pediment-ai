@@ -60,7 +60,7 @@ const selectors = {
   getError:              (state: ChatState) => state.error,
 };
 
-export const STORE_NAME = 'starter-ai/chat';
+export const STORE_NAME = 'pediment-ai/chat';
 
 export const chatStore = createReduxStore(STORE_NAME, { reducer, actions, selectors });
 

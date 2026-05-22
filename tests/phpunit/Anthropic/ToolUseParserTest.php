@@ -1,7 +1,7 @@
 <?php
-namespace StarterAi\Tests\Anthropic;
+namespace PedimentAi\Tests\Anthropic;
 
-use StarterAi\Anthropic\ToolUseParser;
+use PedimentAi\Anthropic\ToolUseParser;
 
 class ToolUseParserTest extends \WP_UnitTestCase {
 	public function test_extracts_emit_page_tool_input(): void {
@@ -12,13 +12,13 @@ class ToolUseParserTest extends \WP_UnitTestCase {
 					'type'  => 'tool_use',
 					'id'    => 'tu_1',
 					'name'  => 'emit_page',
-					'input' => [ 'blocks' => [ [ 'name' => 'starter/hero', 'attributes' => [ 'headline' => 'Hi' ], 'innerBlocks' => [] ] ] ],
+					'input' => [ 'blocks' => [ [ 'name' => 'pediment/hero', 'attributes' => [ 'headline' => 'Hi' ], 'innerBlocks' => [] ] ] ],
 				],
 			],
 		] );
 
 		$this->assertSame( 'emit_page', $result['tool'] );
-		$this->assertSame( 'starter/hero', $result['input']['blocks'][0]['name'] );
+		$this->assertSame( 'pediment/hero', $result['input']['blocks'][0]['name'] );
 		$this->assertSame( [], $result['urls_fetched'] );
 	}
 

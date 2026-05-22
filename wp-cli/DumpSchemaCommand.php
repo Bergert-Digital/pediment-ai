@@ -2,21 +2,21 @@
 /**
  * WP-CLI command that dumps the runtime block schema to a JSON file.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\Cli;
+namespace PedimentAi\Cli;
 
-use StarterAi\Anthropic\SchemaBuilder;
+use PedimentAi\Anthropic\SchemaBuilder;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
 /**
- * Implements `wp starter-ai dump-schema`.
+ * Implements `wp pediment-ai dump-schema`.
  */
 final class DumpSchemaCommand {
 	/**
@@ -36,7 +36,7 @@ final class DumpSchemaCommand {
 		$schema = ( new SchemaBuilder() )->build( true );
 		$path   = isset( $assoc_args['output'] )
 			? (string) $assoc_args['output']
-			: STARTER_AI_PLUGIN_DIR . '/schema/blocks.json';
+			: PEDIMENT_AI_PLUGIN_DIR . '/schema/blocks.json';
 
 		if ( ! is_dir( dirname( $path ) ) ) {
 			mkdir( dirname( $path ), 0777, true );
