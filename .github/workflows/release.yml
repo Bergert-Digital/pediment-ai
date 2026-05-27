@@ -90,14 +90,14 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
         run: |
-          STAGE="$(mktemp -d)/wp-starter-ai"
+          STAGE="$(mktemp -d)/pediment-ai"
           mkdir -p "$STAGE"
           rsync -a --exclude-from=.distignore ./ "$STAGE/"
-          ( cd "$(dirname "$STAGE")" && zip -rq "$GITHUB_WORKSPACE/wp-starter-ai-$VERSION.zip" wp-starter-ai )
-          unzip -l "wp-starter-ai-$VERSION.zip" | tail -5
+          ( cd "$(dirname "$STAGE")" && zip -rq "$GITHUB_WORKSPACE/pediment-ai-$VERSION.zip" pediment-ai )
+          unzip -l "pediment-ai-$VERSION.zip" | tail -5
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ inputs.version }}
-        run: gh release create "v$VERSION" --title "v$VERSION" --generate-notes "wp-starter-ai-$VERSION.zip"
+        run: gh release create "v$VERSION" --title "v$VERSION" --generate-notes "pediment-ai-$VERSION.zip"
