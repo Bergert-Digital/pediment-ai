@@ -2,12 +2,12 @@
 /**
  * Token-to-USD pricing for Anthropic models.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\Usage;
+namespace PedimentAi\Usage;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;

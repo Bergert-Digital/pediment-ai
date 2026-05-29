@@ -37,13 +37,13 @@ export default function ChatPanel({ hideSelectionChip = false }: Props) {
   };
 
   return (
-    <div className="starter-ai-chat">
-      <div className="starter-ai-chat__header">
-        <span className="starter-ai-chat__title">{__('AI Chat', 'starter-ai')}</span>
-        <Button variant="tertiary" size="small" onClick={clear}>{__('Clear', 'starter-ai')}</Button>
+    <div className="pediment-ai-chat">
+      <div className="pediment-ai-chat__header">
+        <span className="pediment-ai-chat__title">{__('AI Chat', 'pediment-ai')}</span>
+        <Button variant="tertiary" size="small" onClick={clear}>{__('Clear', 'pediment-ai')}</Button>
       </div>
       <MessageList messages={messages} streaming={streaming} />
-      {error && <div className="starter-ai-chat__error">{error}</div>}
+      {error && <div className="pediment-ai-chat__error">{error}</div>}
       {selected && !hideSelectionChip && <SelectionChip block={selected} />}
       {selected && <QuickActions block={selected} onAction={send} busy={!!streaming} />}
       <Composer onSubmit={send} onStop={stop} busy={!!streaming} />

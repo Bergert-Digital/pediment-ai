@@ -1,6 +1,6 @@
 {
-  "name": "bergert/wp-starter-ai",
-  "description": "WordPress AI page composer plugin for wp-starter-theme",
+  "name": "bergert/pediment-ai",
+  "description": "WordPress AI page composer plugin for pediment",
   "type": "wordpress-plugin",
   "license": "GPL-2.0-or-later",
   "require": {
@@ -17,13 +17,13 @@
   },
   "autoload": {
     "psr-4": {
-      "StarterAi\\": "src/",
-      "StarterAi\\Cli\\": "wp-cli/"
+      "PedimentAi\\": "src/",
+      "PedimentAi\\Cli\\": "wp-cli/"
     }
   },
   "autoload-dev": {
     "psr-4": {
-      "StarterAi\\Tests\\": "tests/phpunit/"
+      "PedimentAi\\Tests\\": "tests/phpunit/"
     }
   },
   "config": {

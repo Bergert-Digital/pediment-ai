@@ -2,14 +2,14 @@
 /**
  * Fixture-driven mock provider for tests and dev mode.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\Mock;
+namespace PedimentAi\Mock;
 
-use StarterAi\Anthropic\ProviderInterface;
+use PedimentAi\Anthropic\ProviderInterface;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -33,11 +33,11 @@ final class MockProvider implements ProviderInterface {
 
 		$path = $this->fixturesDir . '/' . $fixture . '.json';
 		if ( ! file_exists( $path ) ) {
-			return new \WP_Error( 'starter_ai_mock_missing', "Missing fixture: {$fixture}" );
+			return new \WP_Error( 'pediment_ai_mock_missing', "Missing fixture: {$fixture}" );
 		}
 		$data = json_decode( (string) file_get_contents( $path ), true );
 		if ( ! is_array( $data ) ) {
-			return new \WP_Error( 'starter_ai_mock_invalid', "Invalid fixture: {$fixture}" );
+			return new \WP_Error( 'pediment_ai_mock_invalid', "Invalid fixture: {$fixture}" );
 		}
 		return $data;
 	}
@@ -82,7 +82,7 @@ final class MockProvider implements ProviderInterface {
 		$fixture = $this->resolveChatFixture( $text );
 		$path    = $this->fixturesDir . '/chat/' . $fixture . '.json';
 		if ( ! file_exists( $path ) ) {
-			return new \WP_Error( 'starter_ai_mock_missing', "Missing chat fixture: {$fixture}" );
+			return new \WP_Error( 'pediment_ai_mock_missing', "Missing chat fixture: {$fixture}" );
 		}
 		$raw = (string) file_get_contents( $path );
 
@@ -95,7 +95,7 @@ final class MockProvider implements ProviderInterface {
 
 		$events = json_decode( $raw, true );
 		if ( ! is_array( $events ) ) {
-			return new \WP_Error( 'starter_ai_mock_invalid', "Invalid chat fixture: {$fixture}" );
+			return new \WP_Error( 'pediment_ai_mock_invalid', "Invalid chat fixture: {$fixture}" );
 		}
 		return ( static function () use ( $events ) {
 			foreach ( $events as $e ) {
@@ -112,7 +112,7 @@ final class MockProvider implements ProviderInterface {
 	}
 
 	private function resolveRefineFixture( string $text ): string {
-		if ( preg_match( '/starter\/([a-z\-]+)/i', $text, $m ) ) {
+		if ( preg_match( '/pediment\/([a-z\-]+)/i', $text, $m ) ) {
 			$candidate = 'refine-' . strtolower( $m[1] );
 			$path      = $this->fixturesDir . '/' . $candidate . '.json';
 			if ( file_exists( $path ) ) {

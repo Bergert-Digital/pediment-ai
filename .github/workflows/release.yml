@@ -68,9 +68,9 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           sed -i -E "s/^([[:space:]]*\*[[:space:]]*Version:[[:space:]]+).+$/\1$VERSION/" plugin.php
-          sed -i -E "s/(define\([[:space:]]*'STARTER_AI_VERSION',[[:space:]]*')[^']*('[[:space:]]*\))/\1$VERSION\2/" plugin.php
+          sed -i -E "s/(define\([[:space:]]*'PEDIMENT_AI_VERSION',[[:space:]]*')[^']*('[[:space:]]*\))/\1$VERSION\2/" plugin.php
           node -e "const f='package.json';const p=require('./'+f);p.version=process.env.VERSION;require('fs').writeFileSync(f,JSON.stringify(p,null,2)+'\n');"
-          grep -E "Version:|STARTER_AI_VERSION" plugin.php
+          grep -E "Version:|PEDIMENT_AI_VERSION" plugin.php
           grep '"version"' package.json
 
       - name: Create release commit and push tag
@@ -87,17 +87,21 @@ jobs:
           git push origin "refs/tags/$TAG"
 
       - name: Build distributable zip
-        env:
-          VERSION: ${{ inputs.version }}
         run: |
           STAGE="$(mktemp -d)/pediment-ai"
           mkdir -p "$STAGE"
           rsync -a --exclude-from=.distignore ./ "$STAGE/"
-          ( cd "$(dirname "$STAGE")" && zip -rq "$GITHUB_WORKSPACE/pediment-ai-$VERSION.zip" pediment-ai )
-          unzip -l "pediment-ai-$VERSION.zip" | tail -5
+          ( cd "$(dirname "$STAGE")" && zip -rq "$GITHUB_WORKSPACE/pediment-ai.zip" pediment-ai )
+          unzip -l "pediment-ai.zip" | tail -5
 
+      # Asset filename is intentionally version-less. wp-env derives both the
+      # cache-dir name and the mounted plugin slug from the URL basename
+      # (after stripping trailing numeric segments), so `pediment-ai-X.Y.Z.zip`
+      # would be served as `wp-content/plugins/pediment-ai-X/`, which breaks
+      # any code that expects the canonical `pediment-ai/` slug. The version
+      # still travels in the URL path (`/releases/download/v<X.Y.Z>/pediment-ai.zip`).
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ inputs.version }}
-        run: gh release create "v$VERSION" --title "v$VERSION" --generate-notes "pediment-ai-$VERSION.zip"
+        run: gh release create "v$VERSION" --title "v$VERSION" --generate-notes "pediment-ai.zip"

@@ -1,11 +1,11 @@
 <?php
-namespace StarterAi\Tests\Mock;
+namespace PedimentAi\Tests\Mock;
 
-use StarterAi\Mock\MockProvider;
+use PedimentAi\Mock\MockProvider;
 
 class MockProviderStreamTest extends \WP_UnitTestCase {
 	public function test_stream_messages_yields_insert_event_for_compose_request(): void {
-		$provider = new MockProvider( STARTER_AI_PLUGIN_DIR . '/src/Mock/fixtures' );
+		$provider = new MockProvider( PEDIMENT_AI_PLUGIN_DIR . '/src/Mock/fixtures' );
 		$events   = iterator_to_array(
 			$provider->stream_messages( [
 				'tools'    => [ [ 'name' => 'insert_block' ] ],
@@ -23,7 +23,7 @@ class MockProviderStreamTest extends \WP_UnitTestCase {
 	}
 
 	public function test_stream_messages_yields_update_event_when_selection_present(): void {
-		$provider = new MockProvider( STARTER_AI_PLUGIN_DIR . '/src/Mock/fixtures' );
+		$provider = new MockProvider( PEDIMENT_AI_PLUGIN_DIR . '/src/Mock/fixtures' );
 		$events   = iterator_to_array(
 			$provider->stream_messages( [
 				'tools'    => [ [ 'name' => 'update_block' ] ],

@@ -1,29 +1,29 @@
 <?php
-namespace StarterAi\Tests\Anthropic;
+namespace PedimentAi\Tests\Anthropic;
 
-use StarterAi\Anthropic\SchemaBuilder;
+use PedimentAi\Anthropic\SchemaBuilder;
 
 class SchemaBuilderTest extends \WP_UnitTestCase {
 	public function setUp(): void {
 		parent::setUp();
-		delete_transient( 'starter_ai_schema' );
+		delete_transient( 'pediment_ai_schema' );
 
-		register_block_type( 'starter/test-block', [
+		register_block_type( 'pediment/test-block', [
 			'attributes'  => [ 'foo' => [ 'type' => 'string', 'default' => '' ] ],
 			'description' => 'A test block.',
 		] );
 	}
 
 	public function tearDown(): void {
-		unregister_block_type( 'starter/test-block' );
-		delete_transient( 'starter_ai_schema' );
+		unregister_block_type( 'pediment/test-block' );
+		delete_transient( 'pediment_ai_schema' );
 		parent::tearDown();
 	}
 
 	public function test_includes_starter_blocks(): void {
 		$schema = ( new SchemaBuilder() )->build();
-		$this->assertArrayHasKey( 'starter/test-block', $schema['blocks'] );
-		$this->assertSame( 'A test block.', $schema['blocks']['starter/test-block']['description'] );
+		$this->assertArrayHasKey( 'pediment/test-block', $schema['blocks'] );
+		$this->assertSame( 'A test block.', $schema['blocks']['pediment/test-block']['description'] );
 	}
 
 	public function test_includes_curated_core_blocks(): void {
@@ -42,15 +42,65 @@ class SchemaBuilderTest extends \WP_UnitTestCase {
 	public function test_caches_result_in_transient(): void {
 		$builder = new SchemaBuilder();
 		$first   = $builder->build();
-		$cached  = get_transient( 'starter_ai_schema' );
+		$cached  = get_transient( 'pediment_ai_schema' );
 		$this->assertNotFalse( $cached );
 		$this->assertSame( $first, $cached );
 	}
 
 	public function test_invalidate_clears_transient(): void {
 		( new SchemaBuilder() )->build();
-		$this->assertNotFalse( get_transient( 'starter_ai_schema' ) );
+		$this->assertNotFalse( get_transient( 'pediment_ai_schema' ) );
 		SchemaBuilder::invalidate();
-		$this->assertFalse( get_transient( 'starter_ai_schema' ) );
+		$this->assertFalse( get_transient( 'pediment_ai_schema' ) );
+	}
+
+	public function test_block_namespaces_filter_extends_allowlist(): void {
+		\PedimentAi\Anthropic\SchemaBuilder::invalidate();
+
+		register_block_type(
+			'acme/promo-banner',
+			[
+				'description' => 'A promotional banner.',
+				'attributes'  => [ 'text' => [ 'type' => 'string' ] ],
+			]
+		);
+
+		$cb = static function ( $namespaces ) {
+			$namespaces[] = 'acme';
+			return $namespaces;
+		};
+		add_filter( 'pediment_ai_block_namespaces', $cb );
+
+		$schema = ( new \PedimentAi\Anthropic\SchemaBuilder() )->build( true );
+
+		$this->assertArrayHasKey( 'acme/promo-banner', $schema['blocks'] );
+		$this->assertSame( 'A promotional banner.', $schema['blocks']['acme/promo-banner']['description'] );
+
+		remove_filter( 'pediment_ai_block_namespaces', $cb );
+		unregister_block_type( 'acme/promo-banner' );
+	}
+
+	public function test_core_group_is_allowlisted_with_inner_blocks(): void {
+		$schema = ( new SchemaBuilder() )->build( true );
+		$this->assertArrayHasKey( 'core/group', $schema['blocks'] );
+		$this->assertTrue( $schema['blocks']['core/group']['allowsInnerBlocks'] );
+	}
+
+	public function test_block_namespaces_default_excludes_unknown_namespaces(): void {
+		\PedimentAi\Anthropic\SchemaBuilder::invalidate();
+
+		register_block_type(
+			'thirdparty/widget',
+			[
+				'description' => 'Should be ignored by default.',
+				'attributes'  => [],
+			]
+		);
+
+		$schema = ( new \PedimentAi\Anthropic\SchemaBuilder() )->build( true );
+
+		$this->assertArrayNotHasKey( 'thirdparty/widget', $schema['blocks'] );
+
+		unregister_block_type( 'thirdparty/widget' );
 	}
 }

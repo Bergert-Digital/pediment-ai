@@ -1,6 +1,6 @@
 # Tuning prompts
 
-The system prompt sent on Compose/Edit is assembled in `Jobs/ComposeJob::systemBlock()`. To override per-deploy, hook the `starter_ai_system_prompt` filter (added in v0.2 — for v0.1 modify ComposeJob directly).
+The system prompt sent on Compose/Edit is assembled in `Jobs/ComposeJob::systemBlock()`. To override per-deploy, hook the `pediment_ai_system_prompt` filter (added in v0.2 — for v0.1 modify ComposeJob directly).
 
 ## What goes in
 

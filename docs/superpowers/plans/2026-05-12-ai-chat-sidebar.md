@@ -40,13 +40,13 @@
 
 | Path | Change |
 |---|---|
-| `src/Schema/tables.php` | Add two new tables; bump `STARTER_AI_VERSION` reference unchanged |
+| `src/Schema/tables.php` | Add two new tables; bump `PEDIMENT_AI_VERSION` reference unchanged |
 | `src/Anthropic/Client.php` | Add `stream_messages()` returning an iterator of parsed SSE events |
 | `src/Anthropic/ProviderInterface.php` | Add `stream_messages()` to the contract |
 | `src/Mock/MockProvider.php` | Add `stream_messages()` shim returning canned events from fixture |
 | `src/BlockTree/Validator.php` | Add `validateNode()` for single-block validation |
 | `src/Bootstrap.php` | Wire `ChatController` + `StreamingCheck`; remove old controller wiring |
-| `plugin.php` | Bump `STARTER_AI_VERSION` to `0.2.0` (triggers schema upgrade) |
+| `plugin.php` | Bump `PEDIMENT_AI_VERSION` to `0.2.0` (triggers schema upgrade) |
 | `editor/DocumentPanel.tsx` | Shrink to "Open AI chat" launcher button |
 | `editor/index.tsx` | Register new `PluginSidebar`; stop registering `BlockPanel` |
 | `editor/styles.scss` | Chat layout styles added, modal styles removed |
@@ -94,7 +94,7 @@
 **Files:**
 - Modify: `src/Schema/tables.php`
 - Test: `tests/phpunit/Schema/ChatTablesTest.php`
-- Bump: `plugin.php:22` (STARTER_AI_VERSION → '0.2.0')
+- Bump: `plugin.php:22` (PEDIMENT_AI_VERSION → '0.2.0')
 
 - [ ] **Step 1: Write the failing test**
 
@@ -102,29 +102,29 @@ Create `tests/phpunit/Schema/ChatTablesTest.php`:
 
 ```php
 <?php
-namespace StarterAi\Tests\Schema;
+namespace PedimentAi\Tests\Schema;
 
 class ChatTablesTest extends \WP_UnitTestCase {
 	public function test_chat_tables_exist_after_install(): void {
-		\starter_ai_install_tables();
+		\pediment_ai_install_tables();
 		global $wpdb;
-		$conv = $wpdb->prefix . 'starter_ai_chat_conversations';
-		$msgs = $wpdb->prefix . 'starter_ai_chat_messages';
+		$conv = $wpdb->prefix . 'pediment_ai_chat_conversations';
+		$msgs = $wpdb->prefix . 'pediment_ai_chat_messages';
 		$this->assertSame( $conv, $wpdb->get_var( "SHOW TABLES LIKE '{$conv}'" ) );
 		$this->assertSame( $msgs, $wpdb->get_var( "SHOW TABLES LIKE '{$msgs}'" ) );
 	}
 
 	public function test_chat_tables_have_expected_columns(): void {
-		\starter_ai_install_tables();
+		\pediment_ai_install_tables();
 		global $wpdb;
 		$cols = array_column(
-			$wpdb->get_results( "DESCRIBE {$wpdb->prefix}starter_ai_chat_conversations", ARRAY_A ),
+			$wpdb->get_results( "DESCRIBE {$wpdb->prefix}pediment_ai_chat_conversations", ARRAY_A ),
 			'Field'
 		);
 		$this->assertSame( [ 'id', 'post_id', 'user_id', 'created_at', 'updated_at' ], $cols );
 
 		$cols = array_column(
-			$wpdb->get_results( "DESCRIBE {$wpdb->prefix}starter_ai_chat_messages", ARRAY_A ),
+			$wpdb->get_results( "DESCRIBE {$wpdb->prefix}pediment_ai_chat_messages", ARRAY_A ),
 			'Field'
 		);
 		$this->assertContains( 'role',       $cols );
@@ -144,20 +144,20 @@ Expected: FAIL — tables do not exist.
 
 In `plugin.php`, change:
 ```
-define( 'STARTER_AI_VERSION', '0.1.0' );
+define( 'PEDIMENT_AI_VERSION', '0.1.0' );
 ```
 to:
 ```
-define( 'STARTER_AI_VERSION', '0.2.0' );
+define( 'PEDIMENT_AI_VERSION', '0.2.0' );
 ```
 
 - [ ] **Step 4: Add tables to schema installer**
 
-In `src/Schema/tables.php`, inside `starter_ai_install_tables()`, after the existing `dbDelta( $sql_usage );` line and before `update_option(...)`, add:
+In `src/Schema/tables.php`, inside `pediment_ai_install_tables()`, after the existing `dbDelta( $sql_usage );` line and before `update_option(...)`, add:
 
 ```php
-$conv = $wpdb->prefix . 'starter_ai_chat_conversations';
-$msgs = $wpdb->prefix . 'starter_ai_chat_messages';
+$conv = $wpdb->prefix . 'pediment_ai_chat_conversations';
+$msgs = $wpdb->prefix . 'pediment_ai_chat_messages';
 
 $sql_conv = "CREATE TABLE {$conv} (
 	id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -218,19 +218,19 @@ Create `tests/phpunit/Chat/ConversationStoreTest.php`:
 
 ```php
 <?php
-namespace StarterAi\Tests\Chat;
+namespace PedimentAi\Tests\Chat;
 
-use StarterAi\Chat\ConversationStore;
+use PedimentAi\Chat\ConversationStore;
 
 class ConversationStoreTest extends \WP_UnitTestCase {
 	private ConversationStore $store;
 
 	public function setUp(): void {
 		parent::setUp();
-		\starter_ai_install_tables();
+		\pediment_ai_install_tables();
 		global $wpdb;
-		$wpdb->query( "TRUNCATE {$wpdb->prefix}starter_ai_chat_conversations" );
-		$wpdb->query( "TRUNCATE {$wpdb->prefix}starter_ai_chat_messages" );
+		$wpdb->query( "TRUNCATE {$wpdb->prefix}pediment_ai_chat_conversations" );
+		$wpdb->query( "TRUNCATE {$wpdb->prefix}pediment_ai_chat_messages" );
 		$this->store = new ConversationStore();
 	}
 
@@ -270,12 +270,12 @@ Create `src/Chat/ConversationStore.php`:
 /**
  * CRUD for the chat_conversations and chat_messages tables.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\Chat;
+namespace PedimentAi\Chat;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -287,8 +287,8 @@ final class ConversationStore {
 
 	public function __construct() {
 		global $wpdb;
-		$this->conversations = $wpdb->prefix . 'starter_ai_chat_conversations';
-		$this->messages      = $wpdb->prefix . 'starter_ai_chat_messages';
+		$this->conversations = $wpdb->prefix . 'pediment_ai_chat_conversations';
+		$this->messages      = $wpdb->prefix . 'pediment_ai_chat_messages';
 	}
 
 	/**
@@ -626,9 +626,9 @@ Create `tests/phpunit/Chat/VirtualTreeTest.php`:
 
 ```php
 <?php
-namespace StarterAi\Tests\Chat;
+namespace PedimentAi\Tests\Chat;
 
-use StarterAi\Chat\VirtualTree;
+use PedimentAi\Chat\VirtualTree;
 
 class VirtualTreeTest extends \WP_UnitTestCase {
 	public function test_loads_initial_tree_with_client_ids(): void {
@@ -721,12 +721,12 @@ Create `src/Chat/VirtualTree.php`:
 /**
  * In-memory mutable block tree used during a chat turn.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\Chat;
+namespace PedimentAi\Chat;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -978,9 +978,9 @@ Append to (or create) `tests/phpunit/BlockTree/ValidatorTest.php`:
 
 ```php
 <?php
-namespace StarterAi\Tests\BlockTree;
+namespace PedimentAi\Tests\BlockTree;
 
-use StarterAi\BlockTree\Validator;
+use PedimentAi\BlockTree\Validator;
 
 class ValidatorTest extends \WP_UnitTestCase {
 	public function test_validate_node_returns_no_errors_for_valid_block(): void {
@@ -1071,11 +1071,11 @@ Create `tests/phpunit/Chat/ToolsTest.php`:
 
 ```php
 <?php
-namespace StarterAi\Tests\Chat;
+namespace PedimentAi\Tests\Chat;
 
-use StarterAi\BlockTree\Validator;
-use StarterAi\Chat\Tools;
-use StarterAi\Chat\VirtualTree;
+use PedimentAi\BlockTree\Validator;
+use PedimentAi\Chat\Tools;
+use PedimentAi\Chat\VirtualTree;
 
 class ToolsTest extends \WP_UnitTestCase {
 	private function tools(): Tools {
@@ -1165,14 +1165,14 @@ Create `src/Chat/Tools.php`:
 /**
  * Tool schema definitions and tool-call dispatcher for chat.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\Chat;
+namespace PedimentAi\Chat;
 
-use StarterAi\BlockTree\Validator;
+use PedimentAi\BlockTree\Validator;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -1411,9 +1411,9 @@ Create `tests/phpunit/Anthropic/ClientStreamTest.php`:
 
 ```php
 <?php
-namespace StarterAi\Tests\Anthropic;
+namespace PedimentAi\Tests\Anthropic;
 
-use StarterAi\Anthropic\Client;
+use PedimentAi\Anthropic\Client;
 
 class ClientStreamTest extends \WP_UnitTestCase {
 	public function test_stream_messages_parses_sse_events(): void {
@@ -1477,7 +1477,7 @@ public function stream_messages( array $args ) {
 
 	$ch = curl_init();
 	if ( false === $ch ) {
-		return new \WP_Error( 'starter_ai_curl_init', 'curl_init failed' );
+		return new \WP_Error( 'pediment_ai_curl_init', 'curl_init failed' );
 	}
 	$buffer = '';
 	curl_setopt_array( $ch, [
@@ -1503,12 +1503,12 @@ public function stream_messages( array $args ) {
 	curl_close( $ch );
 
 	if ( false === $ok ) {
-		return new \WP_Error( 'starter_ai_curl_failed', $err ?: 'cURL failed' );
+		return new \WP_Error( 'pediment_ai_curl_failed', $err ?: 'cURL failed' );
 	}
 	if ( $status < 200 || $status >= 300 ) {
 		$body = json_decode( $buffer, true );
 		return new \WP_Error(
-			'starter_ai_anthropic_' . $status,
+			'pediment_ai_anthropic_' . $status,
 			is_array( $body ) && isset( $body['error']['message'] ) ? (string) $body['error']['message'] : 'Anthropic API error',
 			[ 'status' => $status ]
 		);
@@ -1583,13 +1583,13 @@ Create `tests/phpunit/Mock/MockProviderStreamTest.php`:
 
 ```php
 <?php
-namespace StarterAi\Tests\Mock;
+namespace PedimentAi\Tests\Mock;
 
-use StarterAi\Mock\MockProvider;
+use PedimentAi\Mock\MockProvider;
 
 class MockProviderStreamTest extends \WP_UnitTestCase {
 	public function test_stream_messages_yields_insert_event_for_compose_request(): void {
-		$provider = new MockProvider( STARTER_AI_PLUGIN_DIR . '/src/Mock/fixtures' );
+		$provider = new MockProvider( PEDIMENT_AI_PLUGIN_DIR . '/src/Mock/fixtures' );
 		$events   = iterator_to_array(
 			$provider->stream_messages( [
 				'tools'    => [ [ 'name' => 'insert_block' ] ],
@@ -1607,7 +1607,7 @@ class MockProviderStreamTest extends \WP_UnitTestCase {
 	}
 
 	public function test_stream_messages_yields_update_event_when_selection_present(): void {
-		$provider = new MockProvider( STARTER_AI_PLUGIN_DIR . '/src/Mock/fixtures' );
+		$provider = new MockProvider( PEDIMENT_AI_PLUGIN_DIR . '/src/Mock/fixtures' );
 		$events   = iterator_to_array(
 			$provider->stream_messages( [
 				'tools'    => [ [ 'name' => 'update_block' ] ],
@@ -1674,11 +1674,11 @@ public function stream_messages( array $args ) {
 	$fixture  = $this->resolveChatFixture( $text );
 	$path     = $this->fixturesDir . '/chat/' . $fixture . '.json';
 	if ( ! file_exists( $path ) ) {
-		return new \WP_Error( 'starter_ai_mock_missing', "Missing chat fixture: {$fixture}" );
+		return new \WP_Error( 'pediment_ai_mock_missing', "Missing chat fixture: {$fixture}" );
 	}
 	$events = json_decode( (string) file_get_contents( $path ), true );
 	if ( ! is_array( $events ) ) {
-		return new \WP_Error( 'starter_ai_mock_invalid', "Invalid chat fixture: {$fixture}" );
+		return new \WP_Error( 'pediment_ai_mock_invalid', "Invalid chat fixture: {$fixture}" );
 	}
 	return ( static function () use ( $events ) {
 		foreach ( $events as $e ) {
@@ -1726,10 +1726,10 @@ Create `tests/phpunit/Chat/PromptBuilderTest.php`:
 
 ```php
 <?php
-namespace StarterAi\Tests\Chat;
+namespace PedimentAi\Tests\Chat;
 
-use StarterAi\Chat\PromptBuilder;
-use StarterAi\Chat\VirtualTree;
+use PedimentAi\Chat\PromptBuilder;
+use PedimentAi\Chat\VirtualTree;
 
 class PromptBuilderTest extends \WP_UnitTestCase {
 	public function test_system_prompt_lists_block_names_and_tool_conventions(): void {
@@ -1781,12 +1781,12 @@ Create `src/Chat/PromptBuilder.php`:
 /**
  * Builds the system prompt and context messages for a chat turn.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\Chat;
+namespace PedimentAi\Chat;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -1882,15 +1882,15 @@ Create `tests/phpunit/Chat/TurnRunnerTest.php`:
 
 ```php
 <?php
-namespace StarterAi\Tests\Chat;
+namespace PedimentAi\Tests\Chat;
 
-use StarterAi\Chat\ConversationStore;
-use StarterAi\Chat\PromptBuilder;
-use StarterAi\Chat\Tools;
-use StarterAi\Chat\TurnRunner;
-use StarterAi\Chat\VirtualTree;
-use StarterAi\BlockTree\Validator;
-use StarterAi\Mock\MockProvider;
+use PedimentAi\Chat\ConversationStore;
+use PedimentAi\Chat\PromptBuilder;
+use PedimentAi\Chat\Tools;
+use PedimentAi\Chat\TurnRunner;
+use PedimentAi\Chat\VirtualTree;
+use PedimentAi\BlockTree\Validator;
+use PedimentAi\Mock\MockProvider;
 
 class TurnRunnerTest extends \WP_UnitTestCase {
 	private ConversationStore $store;
@@ -1900,16 +1900,16 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 
 	public function setUp(): void {
 		parent::setUp();
-		\starter_ai_install_tables();
+		\pediment_ai_install_tables();
 		global $wpdb;
-		$wpdb->query( "TRUNCATE {$wpdb->prefix}starter_ai_chat_conversations" );
-		$wpdb->query( "TRUNCATE {$wpdb->prefix}starter_ai_chat_messages" );
+		$wpdb->query( "TRUNCATE {$wpdb->prefix}pediment_ai_chat_conversations" );
+		$wpdb->query( "TRUNCATE {$wpdb->prefix}pediment_ai_chat_messages" );
 
 		$schema         = [ 'core/paragraph' => [ 'attributes' => [], 'allowsInnerBlocks' => false ] ];
 		$this->store    = new ConversationStore();
 		$this->tools    = new Tools( $schema, new Validator( $schema ) );
 		$this->prompts  = new PromptBuilder( $schema );
-		$this->provider = new MockProvider( STARTER_AI_PLUGIN_DIR . '/src/Mock/fixtures' );
+		$this->provider = new MockProvider( PEDIMENT_AI_PLUGIN_DIR . '/src/Mock/fixtures' );
 	}
 
 	public function test_run_records_text_delta_and_one_tool_call(): void {
@@ -1936,7 +1936,7 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 		$conv     = $this->store->getOrCreate( 1, 1 );
 		$turn_id  = $this->store->startAssistantTurn( $conv['id'] );
 
-		$broken = new class implements \StarterAi\Anthropic\ProviderInterface {
+		$broken = new class implements \PedimentAi\Anthropic\ProviderInterface {
 			public function messages( array $args ) { return new \WP_Error( 'down', 'Down' ); }
 			public function stream_messages( array $args ) { return new \WP_Error( 'down', 'Down' ); }
 		};
@@ -1990,14 +1990,14 @@ Create `src/Chat/TurnRunner.php`:
 /**
  * Orchestrates the Anthropic iterative tool-use loop for one chat turn.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\Chat;
+namespace PedimentAi\Chat;
 
-use StarterAi\Anthropic\ProviderInterface;
+use PedimentAi\Anthropic\ProviderInterface;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -2167,9 +2167,9 @@ Create `tests/phpunit/Rest/ChatControllerTest.php`:
 
 ```php
 <?php
-namespace StarterAi\Tests\Rest;
+namespace PedimentAi\Tests\Rest;
 
-use StarterAi\Chat\ConversationStore;
+use PedimentAi\Chat\ConversationStore;
 
 class ChatControllerTest extends \WP_UnitTestCase {
 	private \WP_REST_Server $server;
@@ -2177,10 +2177,10 @@ class ChatControllerTest extends \WP_UnitTestCase {
 
 	public function setUp(): void {
 		parent::setUp();
-		\starter_ai_install_tables();
+		\pediment_ai_install_tables();
 		global $wpdb;
-		$wpdb->query( "TRUNCATE {$wpdb->prefix}starter_ai_chat_conversations" );
-		$wpdb->query( "TRUNCATE {$wpdb->prefix}starter_ai_chat_messages" );
+		$wpdb->query( "TRUNCATE {$wpdb->prefix}pediment_ai_chat_conversations" );
+		$wpdb->query( "TRUNCATE {$wpdb->prefix}pediment_ai_chat_messages" );
 
 		// Route registration depends on the global REST server existing already.
 		global $wp_rest_server;
@@ -2193,11 +2193,11 @@ class ChatControllerTest extends \WP_UnitTestCase {
 		$this->post_id = $this->factory->post->create( [ 'post_author' => $user_id, 'post_status' => 'draft' ] );
 
 		// Force the mock provider regardless of constants.
-		add_filter( 'starter_ai_provider', static fn() => new \StarterAi\Mock\MockProvider( STARTER_AI_PLUGIN_DIR . '/src/Mock/fixtures' ) );
+		add_filter( 'pediment_ai_provider', static fn() => new \PedimentAi\Mock\MockProvider( PEDIMENT_AI_PLUGIN_DIR . '/src/Mock/fixtures' ) );
 	}
 
 	public function test_get_conversation_creates_on_first_call(): void {
-		$req = new \WP_REST_Request( 'GET', '/starter-ai/v1/chat/conversations' );
+		$req = new \WP_REST_Request( 'GET', '/pediment-ai/v1/chat/conversations' );
 		$req->set_param( 'post_id', $this->post_id );
 		$res = $this->server->dispatch( $req );
 		$this->assertSame( 200, $res->get_status() );
@@ -2207,7 +2207,7 @@ class ChatControllerTest extends \WP_UnitTestCase {
 
 	public function test_post_turn_returns_202_and_persists_user_message(): void {
 		$conv = ( new ConversationStore() )->getOrCreate( $this->post_id, get_current_user_id() );
-		$req  = new \WP_REST_Request( 'POST', '/starter-ai/v1/chat/turns' );
+		$req  = new \WP_REST_Request( 'POST', '/pediment-ai/v1/chat/turns' );
 		$req->set_param( 'conversation_id', $conv['id'] );
 		$req->set_param( 'post_id', $this->post_id );
 		$req->set_param( 'message', 'Hi' );
@@ -2224,14 +2224,14 @@ class ChatControllerTest extends \WP_UnitTestCase {
 
 	public function test_get_turn_returns_turn_state(): void {
 		$conv = ( new ConversationStore() )->getOrCreate( $this->post_id, get_current_user_id() );
-		$req  = new \WP_REST_Request( 'POST', '/starter-ai/v1/chat/turns' );
+		$req  = new \WP_REST_Request( 'POST', '/pediment-ai/v1/chat/turns' );
 		$req->set_param( 'conversation_id', $conv['id'] );
 		$req->set_param( 'post_id', $this->post_id );
 		$req->set_param( 'message', 'Add a paragraph that says hi' );
 		$post_res = $this->server->dispatch( $req );
 		$turn_id  = $post_res->get_data()['turn_id'];
 
-		$get = new \WP_REST_Request( 'GET', "/starter-ai/v1/chat/turns/{$turn_id}" );
+		$get = new \WP_REST_Request( 'GET', "/pediment-ai/v1/chat/turns/{$turn_id}" );
 		$res = $this->server->dispatch( $get );
 		$this->assertSame( 200, $res->get_status() );
 		$this->assertContains( $res->get_data()['status'], [ 'streaming', 'complete' ] );
@@ -2239,13 +2239,13 @@ class ChatControllerTest extends \WP_UnitTestCase {
 
 	public function test_delete_turn_marks_aborted(): void {
 		$conv = ( new ConversationStore() )->getOrCreate( $this->post_id, get_current_user_id() );
-		$req  = new \WP_REST_Request( 'POST', '/starter-ai/v1/chat/turns' );
+		$req  = new \WP_REST_Request( 'POST', '/pediment-ai/v1/chat/turns' );
 		$req->set_param( 'conversation_id', $conv['id'] );
 		$req->set_param( 'post_id', $this->post_id );
 		$req->set_param( 'message', 'x' );
 		$turn_id = $this->server->dispatch( $req )->get_data()['turn_id'];
 
-		$del = new \WP_REST_Request( 'DELETE', "/starter-ai/v1/chat/turns/{$turn_id}" );
+		$del = new \WP_REST_Request( 'DELETE', "/pediment-ai/v1/chat/turns/{$turn_id}" );
 		$res = $this->server->dispatch( $del );
 		$this->assertSame( 204, $res->get_status() );
 		$this->assertSame( 'aborted', ( new ConversationStore() )->getMessage( $turn_id )['status'] );
@@ -2255,7 +2255,7 @@ class ChatControllerTest extends \WP_UnitTestCase {
 		$conv = ( new ConversationStore() )->getOrCreate( $this->post_id, get_current_user_id() );
 		( new ConversationStore() )->appendUserMessage( $conv['id'], 'a' );
 
-		$del = new \WP_REST_Request( 'DELETE', "/starter-ai/v1/chat/conversations/{$conv['id']}" );
+		$del = new \WP_REST_Request( 'DELETE', "/pediment-ai/v1/chat/conversations/{$conv['id']}" );
 		$res = $this->server->dispatch( $del );
 		$this->assertSame( 204, $res->get_status() );
 		$this->assertSame( [], ( new ConversationStore() )->findById( $conv['id'] )['messages'] );
@@ -2267,7 +2267,7 @@ class ChatControllerTest extends \WP_UnitTestCase {
 		wp_set_current_user( $this->factory->user->create( [ 'role' => 'author' ] ) );
 		$conv = ( new ConversationStore() )->getOrCreate( $other, get_current_user_id() );
 
-		$req = new \WP_REST_Request( 'POST', '/starter-ai/v1/chat/turns' );
+		$req = new \WP_REST_Request( 'POST', '/pediment-ai/v1/chat/turns' );
 		$req->set_param( 'conversation_id', $conv['id'] );
 		$req->set_param( 'post_id', $other );
 		$req->set_param( 'message', 'x' );
@@ -2289,30 +2289,30 @@ Create `src/Rest/ChatController.php`:
 ```php
 <?php
 /**
- * REST routes under /starter-ai/v1/chat/*.
+ * REST routes under /pediment-ai/v1/chat/*.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\Rest;
+namespace PedimentAi\Rest;
 
-use StarterAi\Anthropic\Client;
-use StarterAi\Anthropic\SchemaBuilder;
-use StarterAi\BlockTree\Validator;
-use StarterAi\Chat\ConversationStore;
-use StarterAi\Chat\PromptBuilder;
-use StarterAi\Chat\Tools;
-use StarterAi\Chat\TurnRunner;
-use StarterAi\Chat\VirtualTree;
+use PedimentAi\Anthropic\Client;
+use PedimentAi\Anthropic\SchemaBuilder;
+use PedimentAi\BlockTree\Validator;
+use PedimentAi\Chat\ConversationStore;
+use PedimentAi\Chat\PromptBuilder;
+use PedimentAi\Chat\Tools;
+use PedimentAi\Chat\TurnRunner;
+use PedimentAi\Chat\VirtualTree;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
 final class ChatController {
-	public const NS = 'starter-ai/v1';
+	public const NS = 'pediment-ai/v1';
 
 	public function register(): void {
 		register_rest_route( self::NS, '/chat/conversations', [
@@ -2364,8 +2364,8 @@ final class ChatController {
 		// getMessage doesn't include conversation_id today — fetch directly:
 		global $wpdb;
 		$row = $wpdb->get_row( $wpdb->prepare(
-			"SELECT c.post_id, c.user_id FROM {$wpdb->prefix}starter_ai_chat_messages m
-			 JOIN {$wpdb->prefix}starter_ai_chat_conversations c ON c.id = m.conversation_id
+			"SELECT c.post_id, c.user_id FROM {$wpdb->prefix}pediment_ai_chat_messages m
+			 JOIN {$wpdb->prefix}pediment_ai_chat_conversations c ON c.id = m.conversation_id
 			 WHERE m.id = %d",
 			(int) $r->get_param( 'id' )
 		), ARRAY_A );
@@ -2390,12 +2390,12 @@ final class ChatController {
 		$message         = trim( (string) $r->get_param( 'message' ) );
 		$selected        = $r->get_param( 'selected_block' );
 		if ( '' === $message ) {
-			return new \WP_Error( 'starter_ai_invalid', __( 'Message is required.', 'starter-ai' ), [ 'status' => 400 ] );
+			return new \WP_Error( 'pediment_ai_invalid', __( 'Message is required.', 'pediment-ai' ), [ 'status' => 400 ] );
 		}
 
-		$limits = (array) get_option( 'starter_ai_rate_limits', \StarterAi\Usage\RateLimiter::DEFAULTS );
-		if ( ! ( new \StarterAi\Usage\RateLimiter( $limits ) )->consume( get_current_user_id(), 'compose' ) ) {
-			return new \WP_Error( 'starter_ai_rate_limited', __( 'Rate limit reached.', 'starter-ai' ), [ 'status' => 429 ] );
+		$limits = (array) get_option( 'pediment_ai_rate_limits', \PedimentAi\Usage\RateLimiter::DEFAULTS );
+		if ( ! ( new \PedimentAi\Usage\RateLimiter( $limits ) )->consume( get_current_user_id(), 'compose' ) ) {
+			return new \WP_Error( 'pediment_ai_rate_limited', __( 'Rate limit reached.', 'pediment-ai' ), [ 'status' => 429 ] );
 		}
 
 		$store   = new ConversationStore();
@@ -2453,10 +2453,10 @@ final class ChatController {
 		$tools    = new Tools( $schema['blocks'], new Validator( $schema['blocks'] ) );
 		$prompts  = new PromptBuilder( $schema['blocks'] );
 		$provider = apply_filters(
-			'starter_ai_provider',
-			new Client( ( new \StarterAi\Settings\OptionsStore() )->getApiKey() )
+			'pediment_ai_provider',
+			new Client( ( new \PedimentAi\Settings\OptionsStore() )->getApiKey() )
 		);
-		$model    = (string) apply_filters( 'starter_ai_model_compose', 'claude-sonnet-4-6' );
+		$model    = (string) apply_filters( 'pediment_ai_model_compose', 'claude-sonnet-4-6' );
 
 		$selectedId = is_array( $selected ) && isset( $selected['clientId'] ) ? (string) $selected['clientId'] : null;
 
@@ -2525,10 +2525,10 @@ In `src/Bootstrap.php`, replace the existing block:
 add_action(
 	'rest_api_init',
 	static function () {
-		( new \StarterAi\Rest\ComposeController() )->register();
-		( new \StarterAi\Rest\EditController() )->register();
-		( new \StarterAi\Rest\RefineController() )->register();
-		( new \StarterAi\Rest\StatusController() )->register();
+		( new \PedimentAi\Rest\ComposeController() )->register();
+		( new \PedimentAi\Rest\EditController() )->register();
+		( new \PedimentAi\Rest\RefineController() )->register();
+		( new \PedimentAi\Rest\StatusController() )->register();
 	}
 );
 ```
@@ -2539,14 +2539,14 @@ with:
 add_action(
 	'rest_api_init',
 	static function () {
-		( new \StarterAi\Rest\ChatController() )->register();
+		( new \PedimentAi\Rest\ChatController() )->register();
 	}
 );
 ```
 
 - [ ] **Step 3: Remove obsolete action hooks**
 
-In `src/Bootstrap.php`, delete both `add_action( 'starter_ai_job_completed', ... )` and `add_action( 'starter_ai_job_run', ... )` blocks entirely (lines that wire `ComposeJob` and `JobStore`).
+In `src/Bootstrap.php`, delete both `add_action( 'pediment_ai_job_completed', ... )` and `add_action( 'pediment_ai_job_run', ... )` blocks entirely (lines that wire `ComposeJob` and `JobStore`).
 
 - [ ] **Step 4: Delete legacy PHP files**
 
@@ -2598,9 +2598,9 @@ Create `tests/phpunit/Activation/StreamingCheckTest.php`:
 
 ```php
 <?php
-namespace StarterAi\Tests\Activation;
+namespace PedimentAi\Tests\Activation;
 
-use StarterAi\Activation\StreamingCheck;
+use PedimentAi\Activation\StreamingCheck;
 
 class StreamingCheckTest extends \WP_UnitTestCase {
 	public function test_renders_notice_when_function_missing(): void {
@@ -2635,12 +2635,12 @@ Create `src/Activation/StreamingCheck.php`:
 /**
  * Admin notice when the host lacks fastcgi_finish_request (degrades streaming UX).
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\Activation;
+namespace PedimentAi\Activation;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -2661,8 +2661,8 @@ final class StreamingCheck {
 		printf(
 			'<div class="notice notice-warning"><p>%s</p></div>',
 			esc_html__(
-				'Starter AI: PHP-FPM\'s fastcgi_finish_request() is not available on this host. The chat sidebar will still work but the first response of each turn will not feel streamed. Ask your hosting provider about enabling FastCGI or upgrading to PHP-FPM.',
-				'starter-ai'
+				'Pediment AI: PHP-FPM\'s fastcgi_finish_request() is not available on this host. The chat sidebar will still work but the first response of each turn will not feel streamed. Ask your hosting provider about enabling FastCGI or upgrading to PHP-FPM.',
+				'pediment-ai'
 			)
 		);
 	}
@@ -2671,10 +2671,10 @@ final class StreamingCheck {
 
 - [ ] **Step 4: Wire it in Bootstrap.php**
 
-In `src/Bootstrap.php`, inside `register()`, add (after the existing `( new \StarterAi\Settings\Page() )->register();` line):
+In `src/Bootstrap.php`, inside `register()`, add (after the existing `( new \PedimentAi\Settings\Page() )->register();` line):
 
 ```php
-add_action( 'admin_notices', [ new \StarterAi\Activation\StreamingCheck(), 'renderNotice' ] );
+add_action( 'admin_notices', [ new \PedimentAi\Activation\StreamingCheck(), 'renderNotice' ] );
 ```
 
 - [ ] **Step 5: Run test to verify it passes**
@@ -2717,18 +2717,18 @@ import { __ } from '@wordpress/i18n';
 // WP <6.6 only exposes PluginSidebar on @wordpress/edit-post; WP 6.6+ moved it to @wordpress/editor.
 const PluginSidebar = PluginSidebarFromEditor ?? PluginSidebarFromEditPost;
 
-export const SIDEBAR_NAME = 'starter-ai/chat';
+export const SIDEBAR_NAME = 'pediment-ai/chat';
 
 export default function ChatSidebar() {
   return (
     <PluginSidebar
       name="chat"
-      title={__('AI Chat', 'starter-ai')}
+      title={__('AI Chat', 'pediment-ai')}
       icon="format-chat"
-      className="starter-ai-chat"
+      className="pediment-ai-chat"
     >
-      <div className="starter-ai-chat__body">
-        <p>{__('Chat surface coming online…', 'starter-ai')}</p>
+      <div className="pediment-ai-chat__body">
+        <p>{__('Chat surface coming online…', 'pediment-ai')}</p>
       </div>
     </PluginSidebar>
   );
@@ -2746,9 +2746,9 @@ import BlockPanel from './BlockPanel';
 import ChatSidebar from './ChatSidebar';
 import './styles.scss';
 
-registerPlugin('starter-ai-document-panel', { render: DocumentPanel });
-registerPlugin('starter-ai-block-panel',    { render: BlockPanel });
-registerPlugin('starter-ai-chat',           { render: ChatSidebar });
+registerPlugin('pediment-ai-document-panel', { render: DocumentPanel });
+registerPlugin('pediment-ai-block-panel',    { render: BlockPanel });
+registerPlugin('pediment-ai-chat',           { render: ChatSidebar });
 ```
 
 - [ ] **Step 3: Add minimal chat styles**
@@ -2756,7 +2756,7 @@ registerPlugin('starter-ai-chat',           { render: ChatSidebar });
 Append to `editor/styles.scss`:
 
 ```scss
-.starter-ai-chat {
+.pediment-ai-chat {
   &__body { padding: 12px 16px; font-size: 13px; }
 }
 ```
@@ -2824,7 +2824,7 @@ export default function useConversation(postId: number | null) {
     if (!postId) return;
     try {
       const data = await apiFetch<Conversation>({
-        path: `/starter-ai/v1/chat/conversations?post_id=${postId}`,
+        path: `/pediment-ai/v1/chat/conversations?post_id=${postId}`,
         method: 'GET',
       });
       setConv(data);
@@ -2837,7 +2837,7 @@ export default function useConversation(postId: number | null) {
 
   const clear = useCallback(async () => {
     if (!conv) return;
-    await apiFetch({ path: `/starter-ai/v1/chat/conversations/${conv.id}`, method: 'DELETE' });
+    await apiFetch({ path: `/pediment-ai/v1/chat/conversations/${conv.id}`, method: 'DELETE' });
     await load();
   }, [conv, load]);
 
@@ -2873,7 +2873,7 @@ export default function useChatTurn() {
 
   const stop = useCallback(() => {
     if (streaming) {
-      apiFetch({ path: `/starter-ai/v1/chat/turns/${streaming.id}`, method: 'DELETE' }).catch(() => {});
+      apiFetch({ path: `/pediment-ai/v1/chat/turns/${streaming.id}`, method: 'DELETE' }).catch(() => {});
       abortedRef.current = true;
     }
     if (timer.current !== null) { window.clearInterval(timer.current); timer.current = null; }
@@ -2887,7 +2887,7 @@ export default function useChatTurn() {
     let turnId: number;
     try {
       const r = await apiFetch<{ turn_id: number }>({
-        path: '/starter-ai/v1/chat/turns',
+        path: '/pediment-ai/v1/chat/turns',
         method: 'POST',
         data: {
           conversation_id: args.conversationId,
@@ -2905,7 +2905,7 @@ export default function useChatTurn() {
 
     const tick = async () => {
       try {
-        const t = await apiFetch<ChatMessage>({ path: `/starter-ai/v1/chat/turns/${turnId}`, method: 'GET' });
+        const t = await apiFetch<ChatMessage>({ path: `/pediment-ai/v1/chat/turns/${turnId}`, method: 'GET' });
         if (abortedRef.current) return;
         setStreaming({ ...t, id: turnId });
         if (t.status !== 'streaming') {
@@ -2951,12 +2951,12 @@ export default function ToolCallSummary({ calls }: { calls: any[] }) {
   for (const c of calls) { counts[c.tool] = (counts[c.tool] ?? 0) + 1; }
   const label = Object.entries(counts).map(([t, n]) => `${humanize(t, n)}`).join(', ');
   return (
-    <div className="starter-ai-chat__tools">
-      <button type="button" className="starter-ai-chat__tools-toggle" onClick={() => setOpen(!open)}>
+    <div className="pediment-ai-chat__tools">
+      <button type="button" className="pediment-ai-chat__tools-toggle" onClick={() => setOpen(!open)}>
         {open ? '▾ ' : '▸ '}{label}
       </button>
       {open && (
-        <pre className="starter-ai-chat__tools-detail">{JSON.stringify(calls, null, 2)}</pre>
+        <pre className="pediment-ai-chat__tools-detail">{JSON.stringify(calls, null, 2)}</pre>
       )}
     </div>
   );
@@ -2984,15 +2984,15 @@ export default function MessageList({ messages, streaming }: { messages: ChatMes
   const display = streaming ? [...messages, streaming] : messages;
 
   return (
-    <div className="starter-ai-chat__messages" ref={ref}>
+    <div className="pediment-ai-chat__messages" ref={ref}>
       {display.map((m) => (
-        <div key={m.id} className={`starter-ai-chat__message starter-ai-chat__message--${m.role}`}>
-          <div className="starter-ai-chat__bubble">
+        <div key={m.id} className={`pediment-ai-chat__message pediment-ai-chat__message--${m.role}`}>
+          <div className="pediment-ai-chat__bubble">
             {m.content}
-            {m.status === 'streaming' && <span className="starter-ai-chat__caret" />}
+            {m.status === 'streaming' && <span className="pediment-ai-chat__caret" />}
           </div>
           <ToolCallSummary calls={m.tool_calls} />
-          {m.error && <div className="starter-ai-chat__error">{m.error.message}</div>}
+          {m.error && <div className="pediment-ai-chat__error">{m.error.message}</div>}
         </div>
       ))}
     </div>
@@ -3021,7 +3021,7 @@ export default function Composer({ onSubmit, onStop, busy }: { onSubmit: (text: 
   };
 
   return (
-    <div className="starter-ai-chat__composer">
+    <div className="pediment-ai-chat__composer">
       <textarea
         ref={ref}
         value={value}
@@ -3029,14 +3029,14 @@ export default function Composer({ onSubmit, onStop, busy }: { onSubmit: (text: 
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); }
         }}
-        placeholder={__('Ask the AI to write or edit…', 'starter-ai')}
+        placeholder={__('Ask the AI to write or edit…', 'pediment-ai')}
         rows={3}
         disabled={busy}
       />
-      <div className="starter-ai-chat__composer-actions">
+      <div className="pediment-ai-chat__composer-actions">
         {busy
-          ? <Button variant="secondary" onClick={onStop}>{__('Stop', 'starter-ai')}</Button>
-          : <Button variant="primary"   onClick={submit} disabled={!value.trim()}>{__('Send', 'starter-ai')}</Button>}
+          ? <Button variant="secondary" onClick={onStop}>{__('Stop', 'pediment-ai')}</Button>
+          : <Button variant="primary"   onClick={submit} disabled={!value.trim()}>{__('Send', 'pediment-ai')}</Button>}
       </div>
     </div>
   );
@@ -3060,7 +3060,7 @@ import Composer from './chat/Composer';
 
 const PluginSidebar = PluginSidebarFromEditor ?? PluginSidebarFromEditPost;
 
-export const SIDEBAR_NAME = 'starter-ai/chat';
+export const SIDEBAR_NAME = 'pediment-ai/chat';
 
 export default function ChatSidebar() {
   const postId = useSelect((s) => (s('core/editor') as any).getCurrentPostId(), []) as number | null;
@@ -3079,13 +3079,13 @@ export default function ChatSidebar() {
   };
 
   return (
-    <PluginSidebar name="chat" title={__('AI Chat', 'starter-ai')} icon="format-chat" className="starter-ai-chat">
-      <div className="starter-ai-chat__header">
-        <span className="starter-ai-chat__title">{__('AI Chat', 'starter-ai')}</span>
-        <Button variant="tertiary" size="small" onClick={clear}>{__('Clear', 'starter-ai')}</Button>
+    <PluginSidebar name="chat" title={__('AI Chat', 'pediment-ai')} icon="format-chat" className="pediment-ai-chat">
+      <div className="pediment-ai-chat__header">
+        <span className="pediment-ai-chat__title">{__('AI Chat', 'pediment-ai')}</span>
+        <Button variant="tertiary" size="small" onClick={clear}>{__('Clear', 'pediment-ai')}</Button>
       </div>
       <MessageList messages={conv?.messages ?? []} streaming={streaming} />
-      {(convError || turnError) && <div className="starter-ai-chat__error">{convError ?? turnError}</div>}
+      {(convError || turnError) && <div className="pediment-ai-chat__error">{convError ?? turnError}</div>}
       <Composer onSubmit={send} onStop={stop} busy={!!streaming} />
     </PluginSidebar>
   );
@@ -3097,7 +3097,7 @@ export default function ChatSidebar() {
 Append to `editor/styles.scss` (replacing the placeholder `&__body` rule):
 
 ```scss
-.starter-ai-chat {
+.pediment-ai-chat {
   display: flex; flex-direction: column; height: 100%;
   &__header   { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid #ddd; }
   &__title    { font-weight: 600; }
@@ -3106,8 +3106,8 @@ Append to `editor/styles.scss` (replacing the placeholder `&__body` rule):
   &__message--user      { align-items: flex-end; }
   &__message--assistant { align-items: flex-start; }
   &__bubble   { padding: 8px 12px; border-radius: 12px; max-width: 88%; background: #f0f0f1; white-space: pre-wrap; }
-  &__message--user .starter-ai-chat__bubble { background: #007cba; color: #fff; }
-  &__caret    { display: inline-block; width: 6px; height: 13px; background: currentColor; margin-left: 4px; animation: starter-ai-blink 1s infinite; }
+  &__message--user .pediment-ai-chat__bubble { background: #007cba; color: #fff; }
+  &__caret    { display: inline-block; width: 6px; height: 13px; background: currentColor; margin-left: 4px; animation: pediment-ai-blink 1s infinite; }
   &__tools    { font-size: 11px; color: #555; margin-top: 4px; }
   &__tools-toggle { background: none; border: 0; padding: 0; color: inherit; cursor: pointer; font-size: 11px; }
   &__tools-detail { background: #f6f7f7; padding: 6px; font-size: 11px; max-height: 200px; overflow: auto; }
@@ -3116,7 +3116,7 @@ Append to `editor/styles.scss` (replacing the placeholder `&__body` rule):
   &__composer textarea { width: 100%; resize: vertical; }
   &__composer-actions { display: flex; justify-content: flex-end; }
 }
-@keyframes starter-ai-blink { 50% { opacity: 0; } }
+@keyframes pediment-ai-blink { 50% { opacity: 0; } }
 ```
 
 - [ ] **Step 8: Build**
@@ -3191,10 +3191,10 @@ export default function SelectionChip({ block }: { block: SelectedBlock }) {
   const preview = (block.attributes.content ?? block.attributes.text ?? '').toString().slice(0, 60);
   const clear   = () => (dispatch('core/block-editor') as any).clearSelectedBlock();
   return (
-    <div className="starter-ai-chat__chip">
-      <span className="starter-ai-chat__chip-type">{block.name.replace(/^core\//, '')}</span>
-      <span className="starter-ai-chat__chip-preview">{preview}</span>
-      <Button size="small" variant="tertiary" onClick={clear} aria-label={__('Clear selection', 'starter-ai')}>×</Button>
+    <div className="pediment-ai-chat__chip">
+      <span className="pediment-ai-chat__chip-type">{block.name.replace(/^core\//, '')}</span>
+      <span className="pediment-ai-chat__chip-preview">{preview}</span>
+      <Button size="small" variant="tertiary" onClick={clear} aria-label={__('Clear selection', 'pediment-ai')}>×</Button>
     </div>
   );
 }
@@ -3237,10 +3237,10 @@ const FALLBACK = [
 export default function QuickActions({ block, onAction, busy }: { block: SelectedBlock; onAction: (instruction: string) => void; busy: boolean }) {
   const actions = PRESETS[block.name] ?? FALLBACK;
   return (
-    <div className="starter-ai-chat__quick">
+    <div className="pediment-ai-chat__quick">
       {actions.map((a) => (
         <Button key={a.label} variant="secondary" size="small" onClick={() => onAction(a.instruction)} disabled={busy}>
-          {__(a.label, 'starter-ai')}
+          {__(a.label, 'pediment-ai')}
         </Button>
       ))}
     </div>
@@ -3290,7 +3290,7 @@ Replace the existing `send` function and the line that uses it with `sendWithSel
 
 - [ ] **Step 5: Add styles for chip + quick actions**
 
-Append to `editor/styles.scss` (inside `.starter-ai-chat { ... }`):
+Append to `editor/styles.scss` (inside `.pediment-ai-chat { ... }`):
 
 ```scss
 &__chip    { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: #fffbe6; border-top: 1px solid #f1d889; font-size: 12px; }
@@ -3472,14 +3472,14 @@ export default function DocumentPanel() {
   const open = () => {
     const d = dispatch('core/editor') as any;
     if (typeof d.openGeneralSidebar === 'function') {
-      d.openGeneralSidebar('starter-ai/chat');
+      d.openGeneralSidebar('pediment-ai/chat');
     } else {
-      (dispatch('core/edit-post') as any).openGeneralSidebar('starter-ai/chat');
+      (dispatch('core/edit-post') as any).openGeneralSidebar('pediment-ai/chat');
     }
   };
   return (
-    <PluginDocumentSettingPanel name="starter-ai" title="AI" className="starter-ai__panel">
-      <Button variant="primary" onClick={open}>{__('Open AI Chat', 'starter-ai')}</Button>
+    <PluginDocumentSettingPanel name="pediment-ai" title="AI" className="pediment-ai__panel">
+      <Button variant="primary" onClick={open}>{__('Open AI Chat', 'pediment-ai')}</Button>
     </PluginDocumentSettingPanel>
   );
 }
@@ -3495,8 +3495,8 @@ import DocumentPanel from './DocumentPanel';
 import ChatSidebar from './ChatSidebar';
 import './styles.scss';
 
-registerPlugin('starter-ai-document-panel', { render: DocumentPanel });
-registerPlugin('starter-ai-chat',           { render: ChatSidebar });
+registerPlugin('pediment-ai-document-panel', { render: DocumentPanel });
+registerPlugin('pediment-ai-chat',           { render: ChatSidebar });
 ```
 
 - [ ] **Step 3: Delete obsolete files**
@@ -3516,14 +3516,14 @@ Edit `editor/styles.scss`. Remove these rules (they only apply to the deleted mo
 &__pills    { ... }
 &__pill     { ... }
 &__progress { ... }
-&__error    { ... }   // keep — used by ChatSidebar (already defined inside .starter-ai-chat)
+&__error    { ... }   // keep — used by ChatSidebar (already defined inside .pediment-ai-chat)
 ```
 
-Keep the `&__error` block — `.starter-ai__error` may still be referenced from the legacy `.starter-ai` namespace; if grep shows zero references, delete it too.
+Keep the `&__error` block — `.pediment-ai__error` may still be referenced from the legacy `.pediment-ai` namespace; if grep shows zero references, delete it too.
 
 Verify:
 ```bash
-grep -r 'starter-ai__pill\|starter-ai__progress\|starter-ai__panel\|starter-ai__modal' editor/
+grep -r 'pediment-ai__pill\|pediment-ai__progress\|pediment-ai__panel\|pediment-ai__modal' editor/
 ```
 Expected: no matches.
 
@@ -3559,13 +3559,13 @@ EOF
 - Create: `tests/e2e/chat-abort.spec.ts`
 - Modify: `.wp-env.json` (only if mock mode is not currently enabled)
 
-The e2e tests need `STARTER_AI_MOCK=true` so the mock provider is exercised — but the repo currently has `STARTER_AI_MOCK: false`. Set it to true for the test runs by passing the env via the wp-env config or by setting the setting in test.
+The e2e tests need `PEDIMENT_AI_MOCK=true` so the mock provider is exercised — but the repo currently has `PEDIMENT_AI_MOCK: false`. Set it to true for the test runs by passing the env via the wp-env config or by setting the setting in test.
 
-Use the existing `starter_ai_settings.mock_mode` option through wp-cli or by reading whatever pattern the existing specs used.
+Use the existing `pediment_ai_settings.mock_mode` option through wp-cli or by reading whatever pattern the existing specs used.
 
 - [ ] **Step 1: Enable mock mode for tests**
 
-Edit `.wp-env.json`. Change `"STARTER_AI_MOCK": false` to `"STARTER_AI_MOCK": true` — OR add a Playwright fixture that flips `mock_mode` via wp-cli before each spec. Pick whichever the existing specs use; if `STARTER_AI_MOCK` was already used in older specs, flip the env flag.
+Edit `.wp-env.json`. Change `"PEDIMENT_AI_MOCK": false` to `"PEDIMENT_AI_MOCK": true` — OR add a Playwright fixture that flips `mock_mode` via wp-cli before each spec. Pick whichever the existing specs use; if `PEDIMENT_AI_MOCK` was already used in older specs, flip the env flag.
 
 > **Implementer:** check the existing `tests/e2e/smoke.spec.ts` for the pattern used previously. If older specs assumed mock mode without an env flip, keep the `false` setting and add no env change. If they flipped the env, do the same here.
 
@@ -3585,7 +3585,7 @@ test('chat sidebar inserts a paragraph from mock fixture', async ({ page }) => {
   await page.getByRole('button', { name: /open ai chat/i }).click();
 
   // Wait for the sidebar to render.
-  const sidebar = page.locator('.starter-ai-chat');
+  const sidebar = page.locator('.pediment-ai-chat');
   await sidebar.waitFor({ state: 'visible', timeout: 10_000 });
 
   // Send a message that triggers the insert-paragraph fixture.
@@ -3622,11 +3622,11 @@ test('quick action shortens the selected paragraph via chat', async ({ page }) =
 
   // Open the chat sidebar.
   await page.getByRole('button', { name: /open ai chat/i }).click();
-  const sidebar = page.locator('.starter-ai-chat');
+  const sidebar = page.locator('.pediment-ai-chat');
   await sidebar.waitFor({ state: 'visible' });
 
   // Selection chip should appear; click the "Shorten" quick action.
-  await expect(sidebar.locator('.starter-ai-chat__chip')).toBeVisible();
+  await expect(sidebar.locator('.pediment-ai-chat__chip')).toBeVisible();
   await sidebar.getByRole('button', { name: /^shorten$/i }).click();
 
   // The mock fixture replaces content with "Short."
@@ -3647,7 +3647,7 @@ test('stop button aborts an in-flight turn', async ({ page }) => {
   await openNewPage(page, 'Chat Abort E2E');
   await page.getByRole('button', { name: /open ai chat/i }).click();
 
-  const sidebar = page.locator('.starter-ai-chat');
+  const sidebar = page.locator('.pediment-ai-chat');
   await sidebar.waitFor({ state: 'visible' });
 
   await sidebar.locator('textarea').fill('Add a paragraph that says hi');
@@ -3688,7 +3688,7 @@ EOF
 **Files:**
 - Modify: `editor/ChatSidebar.tsx`
 
-A small first-run nudge: on the user's first editor load after the plugin upgrade, open the sidebar once. Track via a per-user option (option name: `starter_ai_chat_seen`).
+A small first-run nudge: on the user's first editor load after the plugin upgrade, open the sidebar once. Track via a per-user option (option name: `pediment_ai_chat_seen`).
 
 - [ ] **Step 1: Add a REST route for the one-time flag**
 
@@ -3699,7 +3699,7 @@ register_rest_route( self::NS, '/chat/seen', [
 	'methods'             => 'POST',
 	'permission_callback' => static fn() => is_user_logged_in(),
 	'callback'            => function () {
-		update_user_meta( get_current_user_id(), 'starter_ai_chat_seen', '1' );
+		update_user_meta( get_current_user_id(), 'pediment_ai_chat_seen', '1' );
 		return new \WP_REST_Response( null, 204 );
 	},
 ] );
@@ -3707,7 +3707,7 @@ register_rest_route( self::NS, '/chat/seen', [
 	'methods'             => 'GET',
 	'permission_callback' => static fn() => is_user_logged_in(),
 	'callback'            => function () {
-		return new \WP_REST_Response( [ 'seen' => '1' === (string) get_user_meta( get_current_user_id(), 'starter_ai_chat_seen', true ) ], 200 );
+		return new \WP_REST_Response( [ 'seen' => '1' === (string) get_user_meta( get_current_user_id(), 'pediment_ai_chat_seen', true ) ], 200 );
 	},
 ] );
 ```
@@ -3727,12 +3727,12 @@ Inside the `ChatSidebar` component, after the existing hook calls, add:
 useEffect(() => {
   (async () => {
     try {
-      const { seen } = await apiFetch<{ seen: boolean }>({ path: '/starter-ai/v1/chat/seen', method: 'GET' });
+      const { seen } = await apiFetch<{ seen: boolean }>({ path: '/pediment-ai/v1/chat/seen', method: 'GET' });
       if (!seen) {
         const open = (dispatch('core/editor') as any).openGeneralSidebar
           ?? (dispatch('core/edit-post') as any).openGeneralSidebar;
-        open?.('starter-ai/chat');
-        await apiFetch({ path: '/starter-ai/v1/chat/seen', method: 'POST' });
+        open?.('pediment-ai/chat');
+        await apiFetch({ path: '/pediment-ai/v1/chat/seen', method: 'POST' });
       }
     } catch {
       // first-run nudge is best-effort

@@ -19,4 +19,4 @@ No customer data, contact-form submissions, user accounts, or commerce data are 
 
 ## Disable
 
-Toggle "Mock mode" on in Settings → Starter AI, or unset `ANTHROPIC_API_KEY` and clear the key in settings. The plugin's UI remains visible but cannot reach Anthropic.
+Toggle "Mock mode" on in Settings → Pediment AI, or unset `ANTHROPIC_API_KEY` and clear the key in settings. The plugin's UI remains visible but cannot reach Anthropic.

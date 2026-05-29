@@ -2,7 +2,7 @@
 /**
  * Runs when the plugin is deleted from wp-admin. Drops AI plugin tables.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
@@ -11,9 +11,9 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 
 global $wpdb;
 
-$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}starter_ai_jobs" );
-$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}starter_ai_usage" );
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}pediment_ai_jobs" );
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}pediment_ai_usage" );
 
-delete_option( 'starter_ai_settings' );
+delete_option( 'pediment_ai_settings' );
 
-wp_clear_scheduled_hook( 'starter_ai_job_run' );
+wp_clear_scheduled_hook( 'pediment_ai_job_run' );

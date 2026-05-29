@@ -1,7 +1,7 @@
 <?php
-namespace StarterAi\Tests\Usage;
+namespace PedimentAi\Tests\Usage;
 
-use StarterAi\Usage\RateLimiter;
+use PedimentAi\Usage\RateLimiter;
 
 class RateLimiterTest extends \WP_UnitTestCase {
 	private int $user_id;

@@ -1,9 +1,9 @@
 <?php
-namespace StarterAi\Tests\Chat;
+namespace PedimentAi\Tests\Chat;
 
-use StarterAi\BlockTree\Validator;
-use StarterAi\Chat\Tools;
-use StarterAi\Chat\VirtualTree;
+use PedimentAi\BlockTree\Validator;
+use PedimentAi\Chat\Tools;
+use PedimentAi\Chat\VirtualTree;
 
 class ToolsTest extends \WP_UnitTestCase {
 	private function tools(): Tools {

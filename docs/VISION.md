@@ -1,4 +1,4 @@
-# Vision — Starter AI
+# Vision — Pediment AI
 
 ## What we're building
 
@@ -9,7 +9,7 @@ Editors describe what they want (or pick a quick action), and the assistant perf
 ## Who it's for
 
 - **Primary user:** the editor at a small-to-mid-sized agency client site, working in WP admin. Not a developer. Knows Gutenberg. Wants to draft and polish pages faster without copy-pasting between ChatGPT and the editor.
-- **Buyer:** the agency (Bergert Digital and similar shops) deploying client sites built on top of `wp-starter-theme`. They install the plugin, configure brand voice + API key once, and the feature shows up for every editor on every page.
+- **Buyer:** the agency (Bergert Digital and similar shops) deploying client sites built on top of `pediment`. They install the plugin, configure brand voice + API key once, and the feature shows up for every editor on every page.
 - **Not for:** WordPress.org plugin directory users, end-customers of the websites being built, hobbyists running unconstrained themes. The plugin assumes a curated set of registered blocks and a Bedrock-style install.
 
 ## Why this exists

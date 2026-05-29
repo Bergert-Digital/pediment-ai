@@ -46,7 +46,7 @@ async function openSidebarTab(page: Page, tab: 'edit-post/document' | 'edit-post
 
 /**
  * Opens the Document sidebar, ensures the "AI Chat" PluginDocumentSettingPanel is expanded,
- * and returns the chat panel locator (`.starter-ai-chat`) for further interactions.
+ * and returns the chat panel locator (`.pediment-ai-chat`) for further interactions.
  */
 export async function openAIChatPanel(page: Page) {
   await openSidebarTab(page, 'edit-post/document');
@@ -55,7 +55,7 @@ export async function openAIChatPanel(page: Page) {
   if ((await toggle.getAttribute('aria-expanded')) === 'false') {
     await toggle.click();
   }
-  const panel = page.locator('.starter-ai-chat').first();
+  const panel = page.locator('.pediment-ai-chat').first();
   await panel.waitFor({ state: 'visible', timeout: 10_000 });
   return panel;
 }
@@ -71,7 +71,7 @@ export async function openBlockAIChatPanel(page: Page) {
   if ((await toggle.getAttribute('aria-expanded')) === 'false') {
     await toggle.click();
   }
-  const panel = page.locator('.starter-ai-chat').first();
+  const panel = page.locator('.pediment-ai-chat').first();
   await panel.waitFor({ state: 'visible', timeout: 10_000 });
   return panel;
 }

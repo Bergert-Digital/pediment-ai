@@ -1,19 +1,19 @@
 <?php
-namespace StarterAi\Tests\Mock;
+namespace PedimentAi\Tests\Mock;
 
-use StarterAi\Mock\MockProvider;
+use PedimentAi\Mock\MockProvider;
 
 class MockProviderTest extends \WP_UnitTestCase {
 	private string $fixturesDir;
 
 	public function setUp(): void {
 		parent::setUp();
-		$this->fixturesDir = sys_get_temp_dir() . '/starter-ai-fixtures-' . uniqid();
+		$this->fixturesDir = sys_get_temp_dir() . '/pediment-ai-fixtures-' . uniqid();
 		mkdir( $this->fixturesDir, 0777, true );
 		file_put_contents( $this->fixturesDir . '/compose-landing.json', wp_json_encode( [
 			'content' => [
 				[ 'type' => 'tool_use', 'id' => 'tu', 'name' => 'emit_page',
-				  'input' => [ 'blocks' => [ [ 'name' => 'starter/hero', 'attributes' => [ 'headline' => 'Mock landing' ], 'innerBlocks' => [] ] ] ] ],
+				  'input' => [ 'blocks' => [ [ 'name' => 'pediment/hero', 'attributes' => [ 'headline' => 'Mock landing' ], 'innerBlocks' => [] ] ] ] ],
 			],
 			'usage' => [ 'input_tokens' => 0, 'output_tokens' => 0 ],
 			'model' => 'mock',
@@ -46,7 +46,7 @@ class MockProviderTest extends \WP_UnitTestCase {
 	public function test_returns_refine_fixture(): void {
 		$provider = new MockProvider( $this->fixturesDir );
 		$response = $provider->messages( [
-			'messages' => [ [ 'role' => 'user', 'content' => [ [ 'type' => 'text', 'text' => 'Refine this block: starter/hero' ] ] ] ],
+			'messages' => [ [ 'role' => 'user', 'content' => [ [ 'type' => 'text', 'text' => 'Refine this block: pediment/hero' ] ] ] ],
 			'tools'    => [ [ 'name' => 'emit_block' ] ],
 		] );
 		$this->assertSame( 'Mock refined', $response['content'][0]['input']['attributes']['headline'] );

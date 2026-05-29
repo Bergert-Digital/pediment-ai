@@ -2,12 +2,12 @@
 /**
  * Anthropic Messages API client.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\Anthropic;
+namespace PedimentAi\Anthropic;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -82,7 +82,7 @@ final class Client implements ProviderInterface {
 		$message    = is_array( $body ) && isset( $body['error']['message'] ) ? (string) $body['error']['message'] : 'Anthropic API error';
 
 		return new \WP_Error(
-			'starter_ai_anthropic_' . $status,
+			'pediment_ai_anthropic_' . $status,
 			$message,
 			[ 'error_type' => $error_type, 'status' => $status ]
 		);
@@ -97,69 +97,115 @@ final class Client implements ProviderInterface {
 
 		$ch = curl_init();
 		if ( false === $ch ) {
-			return new \WP_Error( 'starter_ai_curl_init', 'curl_init failed' );
+			return new \WP_Error( 'pediment_ai_curl_init', 'curl_init failed' );
 		}
-		$buffer = '';
+
+		$parser = new SseParser();
+		$queue  = [];
+		$raw    = '';
+
 		curl_setopt_array( $ch, [
-			CURLOPT_URL            => rtrim( $this->baseUrl, '/' ) . '/v1/messages',
-			CURLOPT_POST           => true,
-			CURLOPT_HTTPHEADER     => [
+			CURLOPT_URL           => rtrim( $this->baseUrl, '/' ) . '/v1/messages',
+			CURLOPT_POST          => true,
+			CURLOPT_HTTPHEADER    => [
 				'x-api-key: ' . $this->apiKey,
 				'anthropic-version: ' . self::API_VERSION,
 				'content-type: application/json',
 				'accept: text/event-stream',
 			],
-			CURLOPT_POSTFIELDS     => wp_json_encode( $args ),
-			CURLOPT_RETURNTRANSFER => true,
-			CURLOPT_TIMEOUT        => $this->timeout,
-			CURLOPT_WRITEFUNCTION  => function ( $h, $chunk ) use ( &$buffer ) {
-				$buffer .= $chunk;
+			CURLOPT_POSTFIELDS    => wp_json_encode( $args ),
+			CURLOPT_TIMEOUT       => $this->timeout,
+			// Invoked by libcurl as bytes arrive — feed the incremental parser
+			// so events become available mid-transfer, not after it completes.
+			CURLOPT_WRITEFUNCTION => function ( $h, $chunk ) use ( $parser, &$queue, &$raw ) {
+				$raw .= $chunk;
+				foreach ( $parser->push( $chunk ) as $event ) {
+					$queue[] = $event;
+				}
 				return strlen( $chunk );
 			},
 		] );
-		$ok      = curl_exec( $ch );
-		$err     = curl_error( $ch );
-		$status  = (int) curl_getinfo( $ch, CURLINFO_HTTP_CODE );
-		curl_close( $ch );
 
-		if ( false === $ok ) {
-			return new \WP_Error( 'starter_ai_curl_failed', $err ?: 'cURL failed' );
+		$mh = curl_multi_init();
+		curl_multi_add_handle( $mh, $ch );
+
+		// Pump until the HTTP status is known (headers parsed) or the transfer ends.
+		$running = null;
+		do {
+			curl_multi_exec( $mh, $running );
+			$status = (int) curl_getinfo( $ch, CURLINFO_RESPONSE_CODE );
+			if ( $status > 0 ) {
+				break;
+			}
+			if ( $running ) {
+				curl_multi_select( $mh, 1.0 );
+			}
+		} while ( $running );
+
+		$status = (int) curl_getinfo( $ch, CURLINFO_RESPONSE_CODE );
+
+		if ( 0 === $status ) {
+			$err = curl_error( $ch ) ?: 'cURL failed';
+			curl_multi_remove_handle( $mh, $ch );
+			curl_multi_close( $mh );
+			return new \WP_Error( 'pediment_ai_curl_failed', $err );
 		}
+
 		if ( $status < 200 || $status >= 300 ) {
-			$body = json_decode( $buffer, true );
+			// Error responses are a small JSON body, not SSE — drain then report.
+			while ( $running ) {
+				curl_multi_exec( $mh, $running );
+				curl_multi_select( $mh, 1.0 );
+			}
+			curl_multi_remove_handle( $mh, $ch );
+			curl_multi_close( $mh );
+			$body = json_decode( $raw, true );
 			return new \WP_Error(
-				'starter_ai_anthropic_' . $status,
+				'pediment_ai_anthropic_' . $status,
 				is_array( $body ) && isset( $body['error']['message'] ) ? (string) $body['error']['message'] : 'Anthropic API error',
 				[ 'status' => $status ]
 			);
 		}
 
-		return $this->parseSseStream( $buffer );
+		return ( function () use ( $mh, $ch, $parser, &$queue, &$running ) {
+			try {
+				while ( $running ) {
+					curl_multi_exec( $mh, $running );
+					while ( $queue ) {
+						yield array_shift( $queue );
+					}
+					if ( $running ) {
+						curl_multi_select( $mh, 1.0 );
+					}
+				}
+				// Transfer finished — emit anything the last exec produced.
+				while ( $queue ) {
+					yield array_shift( $queue );
+				}
+				foreach ( $parser->flush() as $event ) {
+					yield $event;
+				}
+			} finally {
+				curl_multi_remove_handle( $mh, $ch );
+				curl_multi_close( $mh );
+			}
+		} )();
 	}
 
 	/**
-	 * Parses an SSE blob into a generator of decoded `data:` events.
-	 * Public so tests can drive it without a real HTTP call.
+	 * Parses a complete SSE blob into a generator of decoded `data:` events.
+	 * Public so tests can drive the parse without a real HTTP call.
 	 *
 	 * @param string $sse
 	 * @return \Generator<int,array<string,mixed>>
 	 */
 	public function parseSseStream( string $sse ): \Generator {
-		$blocks = preg_split( "/\r?\n\r?\n/", $sse );
-		foreach ( (array) $blocks as $block ) {
-			$block = trim( $block );
-			if ( '' === $block ) {
-				continue;
-			}
-			foreach ( preg_split( "/\r?\n/", $block ) as $line ) {
-				if ( str_starts_with( $line, 'data: ' ) ) {
-					$payload = substr( $line, 6 );
-					$decoded = json_decode( $payload, true );
-					if ( is_array( $decoded ) ) {
-						yield $decoded;
-					}
-				}
-			}
+		$parser = new SseParser();
+		foreach ( $parser->push( $sse ) as $event ) {
+			yield $event;
+		}
+		foreach ( $parser->flush() as $event ) {
+			yield $event;
 		}
 	}
 }

@@ -1,12 +1,12 @@
-# Agent instructions — wp-starter-ai
+# Agent instructions — pediment-ai
 
 Project-level guidance for coding agents working in this repo. User-level instructions in `~/.claude/CLAUDE.md` apply first; this file overrides only what is project-specific.
 
 ## What this project is
 
-WordPress plugin that adds AI-powered authoring to `wp-starter-theme` via three flows: **Compose** (generate a fresh page from a prompt), **Edit** (rewrite an existing page), **Refine** (mutate a single block). All flows are moving into a single **chat sidebar** in the Gutenberg editor — see `docs/VISION.md`.
+WordPress plugin that adds AI-powered authoring to `pediment` via three flows: **Compose** (generate a fresh page from a prompt), **Edit** (rewrite an existing page), **Refine** (mutate a single block). All flows are moving into a single **chat sidebar** in the Gutenberg editor — see `docs/VISION.md`.
 
-Distribution: `composer require bergert/wp-starter-ai` into a Bedrock-based client site. Not a public WordPress.org plugin.
+Distribution: `composer require bergert/pediment-ai` into a Bedrock-based client site. Not a public WordPress.org plugin.
 
 ## Branches
 
@@ -18,10 +18,10 @@ Default working branch for /dev-cycle and ad-hoc work: `development`.
 
 ## Schema and migrations
 
-Tables live in [src/Schema/tables.php](src/Schema/tables.php) and are created by `starter_ai_install_tables()` on plugin activation and on `plugins_loaded` if `starter_ai_db_version` ≠ `STARTER_AI_VERSION`. Bumping schema means:
+Tables live in [src/Schema/tables.php](src/Schema/tables.php) and are created by `pediment_ai_install_tables()` on plugin activation and on `plugins_loaded` if `pediment_ai_db_version` ≠ `PEDIMENT_AI_VERSION`. Bumping schema means:
 
 1. Edit `tables.php`.
-2. Bump `STARTER_AI_VERSION` in `plugin.php`.
+2. Bump `PEDIMENT_AI_VERSION` in `plugin.php`.
 3. The activation hook re-runs `dbDelta` next page load.
 
 Schema-touching changes must run on the working branch, not in a worktree (per user-level worktree policy).
@@ -30,7 +30,7 @@ Schema-touching changes must run on the working branch, not in a worktree (per u
 
 - `npm run env:start` — boot wp-env (ports 8898 / 8899). The 8899 tests instance has its own DB.
 - `npm run build` / `npm run start` — build / watch the editor bundle.
-- `STARTER_AI_MOCK=true` (set in `.wp-env.json`, on by default for local) makes the plugin return canned fixture responses instead of hitting Anthropic. Toggle off in Settings → Starter AI to test live.
+- `PEDIMENT_AI_MOCK=true` (set in `.wp-env.json`, on by default for local) makes the plugin return canned fixture responses instead of hitting Anthropic. Toggle off in Settings → Pediment AI to test live.
 
 ## Testing
 
@@ -63,7 +63,7 @@ wp-cli/              — WP-CLI commands
 
 ## Conventions
 
-- **PHP**: PSR-4 under `\StarterAi\…`. phpcs rules in `phpcs.xml.dist`. WordPress sniffs relaxed where they conflict with our style — don't reintroduce them.
+- **PHP**: PSR-4 under `\PedimentAi\…`. phpcs rules in `phpcs.xml.dist`. WordPress sniffs relaxed where they conflict with our style — don't reintroduce them.
 - **TypeScript**: strict mode (`tsconfig.json`). `@wordpress/scripts` build pipeline. No standalone React — we use the WP-provided React build via the `react-jsx-runtime` shim (see [editor/index.tsx](editor/index.tsx)).
 - **Commits**: Conventional Commits — `feat(scope):`, `fix(scope):`, `refactor(scope):`, `chore:`, `docs:`, `test:`. Include `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>` when an agent authored the commit.
 - **Naming**: PHP classes are `StudlyCase`; methods + properties are `camelCase`; DB columns are `snake_case`; React components are `StudlyCase.tsx`; hooks are `useCamelCase.ts`.

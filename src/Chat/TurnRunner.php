@@ -2,22 +2,22 @@
 /**
  * Orchestrates the Anthropic iterative tool-use loop for one chat turn.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\Chat;
+namespace PedimentAi\Chat;
 
-use StarterAi\Anthropic\ProviderInterface;
+use PedimentAi\Anthropic\ProviderInterface;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
 final class TurnRunner {
-	private const MAX_ITERATIONS = 8;
-	private const MAX_TOKENS     = 4096;
+	private const MAX_ITERATIONS = 20;
+	private const MAX_TOKENS     = 16384;
 
 	public function __construct(
 		private readonly ConversationStore $store,
@@ -51,14 +51,34 @@ final class TurnRunner {
 			],
 		];
 
-		for ( $i = 0; $i < self::MAX_ITERATIONS; $i++ ) {
+		/**
+		 * Filter the maximum number of agentic tool-use round-trips per turn.
+		 *
+		 * A multi-section page build needs one round-trip per batch of block
+		 * mutations; the default headroom covers a full landing page.
+		 *
+		 * @param int $max Default self::MAX_ITERATIONS.
+		 */
+		$max_iterations = (int) apply_filters( 'pediment_ai_max_iterations', self::MAX_ITERATIONS );
+
+		/**
+		 * Filter the per-call max output tokens sent to the model.
+		 *
+		 * Too low truncates a batched set of block mutations mid-turn, wasting
+		 * the iteration budget. Keep within the configured model's output ceiling.
+		 *
+		 * @param int $max Default self::MAX_TOKENS.
+		 */
+		$max_tokens = (int) apply_filters( 'pediment_ai_max_tokens', self::MAX_TOKENS );
+
+		for ( $i = 0; $i < $max_iterations; $i++ ) {
 			if ( $this->store->isAborted( $turn_id ) ) {
 				return;
 			}
 
 			$result = $this->provider->stream_messages( [
 				'model'      => $this->model,
-				'max_tokens' => self::MAX_TOKENS,
+				'max_tokens' => $max_tokens,
 				'system'     => $this->prompts->systemPrompt(),
 				'tools'      => $this->tools->definitions(),
 				'messages'   => $messages,
@@ -113,8 +133,17 @@ final class TurnRunner {
 				}
 				if ( 'content_block_stop' === $type ) {
 					if ( null !== $current_tu ) {
-						$tu_input    = json_decode( $current_tu['input'], true );
-						$tu_input    = is_array( $tu_input ) ? $tu_input : [];
+						$tu_input = json_decode( $current_tu['input'], true );
+						// A tool_use whose input did not fully arrive (e.g. the model
+						// hit max_tokens mid-call) decodes to null/[]. Sending it back
+						// would serialize as JSON [] and Anthropic rejects it
+						// ("tool_use.input: Input should be an object"). Drop the
+						// incomplete call entirely — no apply, no assistant block, no
+						// orphan tool_result — and let the model re-issue it next round.
+						if ( ! is_array( $tu_input ) || [] === $tu_input ) {
+							$current_tu = null;
+							continue;
+						}
 						$tool_result = $this->tools->apply( $tree, $current_tu['name'], $tu_input );
 						$this->store->recordToolCall( $turn_id, [
 							'tool'     => $current_tu['name'],
@@ -151,6 +180,19 @@ final class TurnRunner {
 
 			if ( 'end_turn' === $stop_reason || '' === $stop_reason || null === $stop_reason ) {
 				$this->store->complete( $turn_id );
+				return;
+			}
+
+			// Nothing usable survived this round (e.g. the only block was a
+			// truncated tool_use). Sending an empty assistant message back is
+			// rejected by Anthropic ("text content blocks must be non-empty");
+			// end the turn cleanly with an actionable message instead.
+			if ( [] === $assistantContent ) {
+				$this->store->fail(
+					$turn_id,
+					'response_truncated',
+					'The response was cut off before anything could be applied. Ask me to continue.'
+				);
 				return;
 			}
 

@@ -2,12 +2,12 @@
 /**
  * Builds the system prompt and context messages for a chat turn.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 
 declare(strict_types=1);
 
-namespace StarterAi\Chat;
+namespace PedimentAi\Chat;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -26,12 +26,24 @@ final class PromptBuilder {
 		$lines[] = 'Mutation tool calls are applied at the end of your turn — you do not see the post change between calls. The synthetic tool_result you receive for inserts contains the new client_id; use it for subsequent calls in the same turn that reference the inserted block.';
 		$lines[] = 'Write naturally and concisely in your prose. Do not over-explain. Do not apologize. If you are not changing the post, simply answer the question.';
 		$lines[] = '';
+		$lines[] = 'Page structure: compose a page as a sequence of distinct sections. Wrap each section\'s blocks in a core/group with attributes {"tagName":"section","className":"starter-section"}. Do not emit a flat list of top-level paragraphs or headings — group them into their section. If you do not wrap a section in a group, place a core/separator between sections.';
+		$lines[] = '';
 		$lines[] = 'Available blocks (use these — do not invent block names):';
 		foreach ( $this->blockSchema as $name => $info ) {
 			$description = isset( $info['description'] ) ? (string) $info['description'] : '';
 			$lines[]     = '' !== $description ? "- {$name} — {$description}" : "- {$name}";
 		}
-		return implode( "\n", $lines );
+		$prompt = implode( "\n", $lines );
+
+		/**
+		 * Filter the system prompt used by the AI plugin for chat turns.
+		 *
+		 * Runs on every chat turn; the result is not cached.
+		 *
+		 * @param string                            $prompt      Composed system prompt.
+		 * @param array<string,array<string,mixed>> $blockSchema The block schema available to this turn.
+		 */
+		return (string) apply_filters( 'pediment_ai_system_prompt', $prompt, $this->blockSchema );
 	}
 
 	/**

@@ -3,7 +3,7 @@
  * expects as a dependency. WP 6.6+ registers this handle natively, but
  * older installs (and some wp-env images) do not. Build it from React.
  *
- * @package StarterAi
+ * @package PedimentAi
  */
 ( function ( React ) {
 	if ( ! React ) { return; }
