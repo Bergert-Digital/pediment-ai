@@ -20,15 +20,39 @@ export async function login(page: Page) {
 
 export async function openNewPage(page: Page, title: string) {
   await page.goto('/wp-admin/post-new.php?post_type=page');
-  // Close any welcome / fullscreen modal that appears on first load.
-  const closeBtn = page.getByRole('button', { name: /close dialog|close/i });
-  if (await closeBtn.count()) { await closeBtn.first().click().catch(() => {}); }
+  await dismissEditorOverlays(page);
   // Give the editor a beat to mount its iframe before we look for the canvas.
   await page.locator('iframe[name="editor-canvas"], .editor-post-title__input').first().waitFor({ timeout: 20_000 });
+  // WP 6.9 + pattern-providing themes open a "Choose a pattern" dialog *after* the editor mounts.
+  await dismissEditorOverlays(page);
   const scope = await canvas(page);
   const titleField = scope.locator('.editor-post-title__input, [aria-label*="Add title" i], [placeholder*="Add title" i]').first();
   await titleField.waitFor({ state: 'visible', timeout: 20_000 });
   await titleField.fill(title);
+}
+
+/**
+ * Dismisses any modal/dialog that the post editor opens on a fresh page.
+ * Handles WP's welcome guide, fullscreen prompt, and (WP 6.9+) the
+ * "Choose a pattern" picker that appears when the active theme provides patterns.
+ */
+async function dismissEditorOverlays(page: Page) {
+  const patterns = [
+    /^Choose a pattern$/i,
+    /^Welcome to/i,
+    /Welcome to the block editor/i,
+  ];
+  for (const name of patterns) {
+    const dialog = page.getByRole('dialog', { name });
+    if (await dialog.first().isVisible().catch(() => false)) {
+      await dialog.first().getByRole('button', { name: /^close/i }).click({ timeout: 2_000 }).catch(() => {});
+    }
+  }
+  // Generic fallback: any visible "Close dialog" button (covers older WP modal labels).
+  const closeDialog = page.getByRole('button', { name: /^close dialog$/i });
+  if (await closeDialog.first().isVisible().catch(() => false)) {
+    await closeDialog.first().click({ timeout: 2_000 }).catch(() => {});
+  }
 }
 
 /**
