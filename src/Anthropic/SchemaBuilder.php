@@ -109,6 +109,16 @@ final class SchemaBuilder {
 				continue;
 			}
 
+			// Extract per-attribute `required: true` markers into a JSON-Schema-shaped
+			// block-level array and drop the non-standard flag from each attribute.
+			$requiredAttrs = [];
+			foreach ( $attributes as $attrName => $attrSpec ) {
+				if ( is_array( $attrSpec ) && ! empty( $attrSpec['required'] ) ) {
+					$requiredAttrs[] = $attrName;
+					unset( $attributes[ $attrName ]['required'] );
+				}
+			}
+
 			$parent       = isset( $type->parent ) && is_array( $type->parent ) ? $type->parent : [];
 			$allows_inner = ! empty( $type->supports['__experimentalLayout'] )
 				|| ! empty( $type->supports['inserter'] )
@@ -119,6 +129,10 @@ final class SchemaBuilder {
 				'attributes'        => $attributes,
 				'allowsInnerBlocks' => (bool) $allows_inner,
 			];
+
+			if ( ! empty( $requiredAttrs ) ) {
+				$blocks[ $name ]['requiredAttributes'] = $requiredAttrs;
+			}
 
 			if ( ! empty( $parent ) ) {
 				$blocks[ $name ]['onlyAllowedAsChildOf'] = $parent;

@@ -40,6 +40,26 @@ final class Tools {
 			'required'   => [ 'name', 'attributes' ],
 		];
 
+		// Per-block attribute requirements expressed as JSON Schema if/then conditions,
+		// so Anthropic's tool-input validator rejects insert_block calls that omit a
+		// required attribute (e.g. pediment/section-head without `headline`).
+		$conditionals = [];
+		foreach ( $this->blockSchema as $blockName => $info ) {
+			$requiredAttrs = isset( $info['requiredAttributes'] ) && is_array( $info['requiredAttributes'] )
+				? $info['requiredAttributes']
+				: [];
+			if ( empty( $requiredAttrs ) ) {
+				continue;
+			}
+			$conditionals[] = [
+				'if'   => [ 'properties' => [ 'name' => [ 'const' => $blockName ] ] ],
+				'then' => [ 'properties' => [ 'attributes' => [ 'type' => 'object', 'required' => $requiredAttrs ] ] ],
+			];
+		}
+		if ( ! empty( $conditionals ) ) {
+			$blockSchema['allOf'] = $conditionals;
+		}
+
 		return [
 			[
 				'name'         => 'insert_block',
