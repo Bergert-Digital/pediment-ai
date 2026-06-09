@@ -29,9 +29,22 @@ final class OptionsStore {
 	}
 
 	public function setApiKey( string $plain ): void {
-		$opts = $this->all();
+		update_option( self::OPTION, $this->withApiKey( $this->all(), $plain ) );
+	}
+
+	/**
+	 * Return a copy of $opts with the API key encrypted into it (or cleared when
+	 * $plain is empty). Pure: it does NOT persist. Use this — not setApiKey() —
+	 * inside a register_setting sanitize_callback, where a nested update_option()
+	 * on this same option would re-enter the callback and drop the new key before
+	 * it is ever committed.
+	 *
+	 * @param array<string,mixed> $opts
+	 * @return array<string,mixed>
+	 */
+	public function withApiKey( array $opts, string $plain ): array {
 		$opts['api_key_encrypted'] = '' === $plain ? '' : $this->encrypt( $plain );
-		update_option( self::OPTION, $opts );
+		return $opts;
 	}
 
 	public function get( string $key, $default = null ) {

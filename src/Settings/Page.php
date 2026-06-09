@@ -46,9 +46,12 @@ final class Page {
 		$store = new OptionsStore();
 		$out   = $store->all();
 
+		// Fold the new key into $out and let the Settings API persist it once.
+		// Calling setApiKey() here would update_option() this same option from
+		// inside its own sanitize_callback, re-entering sanitize() with an input
+		// that has no plaintext 'api_key' — which would drop the key entirely.
 		if ( isset( $input['api_key'] ) && '' !== (string) $input['api_key'] ) {
-			$store->setApiKey( (string) $input['api_key'] );
-			$out = $store->all();
+			$out = $store->withApiKey( $out, (string) $input['api_key'] );
 		}
 		if ( isset( $input['model_compose'] ) ) {
 			$out['model_compose'] = sanitize_text_field( (string) $input['model_compose'] );
