@@ -34,6 +34,11 @@ if ( file_exists( __DIR__ . '/vendor/woocommerce/action-scheduler/action-schedul
 	require_once __DIR__ . '/vendor/woocommerce/action-scheduler/action-scheduler.php';
 }
 
+// One-click updates from GitHub Releases (no manual zip uploads).
+if ( class_exists( \PedimentAi\Updater::class ) ) {
+	\PedimentAi\Updater::register( PEDIMENT_AI_PLUGIN_FILE );
+}
+
 require_once __DIR__ . '/src/Schema/tables.php';
 register_activation_hook( PEDIMENT_AI_PLUGIN_FILE, 'pediment_ai_install_tables' );
 add_action(
