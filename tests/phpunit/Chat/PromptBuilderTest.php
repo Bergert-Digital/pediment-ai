@@ -58,6 +58,16 @@ class PromptBuilderTest extends \WP_UnitTestCase {
 		$this->assertStringContainsString( 'core/group', $prompt );
 	}
 
+	public function test_system_prompt_prescribes_theme_respecting_layout(): void {
+		$pb     = new \PedimentAi\Chat\PromptBuilder( [ 'core/group' => [ 'description' => 'A section container.' ] ] );
+		$prompt = $pb->systemPrompt();
+		// Sections must use the theme's constrained layout and lean on the theme's
+		// own width settings — never force flow, never hard-code pixel widths.
+		$this->assertStringContainsString( '"layout":{"type":"constrained"}', $prompt );
+		$this->assertStringContainsString( '"align":"wide"', $prompt );
+		$this->assertStringNotContainsString( '"type":"default"', $prompt );
+	}
+
 	public function test_system_prompt_is_filterable(): void {
 		$cb = static function ( $prompt, $schema ) {
 			return $prompt . "\n\nAcme brand voice: confident and concise.";
