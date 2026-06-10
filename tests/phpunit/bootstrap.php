@@ -12,7 +12,6 @@ require_once $_tests_dir . '/includes/functions.php';
 
 tests_add_filter( 'muplugins_loaded', function () {
 	require dirname( __DIR__, 2 ) . '/vendor/autoload.php';
-	require dirname( __DIR__, 2 ) . '/vendor/woocommerce/action-scheduler/action-scheduler.php';
 	require dirname( __DIR__, 2 ) . '/plugin.php';
 } );
 
