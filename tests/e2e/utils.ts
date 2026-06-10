@@ -20,15 +20,37 @@ export async function login(page: Page) {
 
 export async function openNewPage(page: Page, title: string) {
   await page.goto('/wp-admin/post-new.php?post_type=page');
-  await dismissEditorOverlays(page);
   // Give the editor a beat to mount its iframe before we look for the canvas.
   await page.locator('iframe[name="editor-canvas"], .editor-post-title__input').first().waitFor({ timeout: 20_000 });
+  // The "Welcome to the editor" guide mounts asynchronously and its modal overlay
+  // intercepts pointer events. Disable it via the preferences store (reactive —
+  // closes it if already open) rather than racing to click its Close button.
+  await disableWelcomeGuide(page);
   // WP 6.9 + pattern-providing themes open a "Choose a pattern" dialog *after* the editor mounts.
   await dismissEditorOverlays(page);
   const scope = await canvas(page);
   const titleField = scope.locator('.editor-post-title__input, [aria-label*="Add title" i], [placeholder*="Add title" i]').first();
   await titleField.waitFor({ state: 'visible', timeout: 20_000 });
   await titleField.fill(title);
+}
+
+/**
+ * Turns off the editor welcome guide via the preferences store. This is reactive,
+ * so it dismisses the guide whether it has already mounted or is about to. Covers
+ * both the modern `core/preferences` store and the legacy edit-post feature flag.
+ */
+async function disableWelcomeGuide(page: Page) {
+  await page
+    .waitForFunction(() => !!(window as any).wp?.data?.dispatch?.('core/preferences'), null, { timeout: 20_000 })
+    .catch(() => {});
+  await page.evaluate(() => {
+    const wp = (window as any).wp;
+    wp?.data?.dispatch?.('core/preferences')?.set?.('core', 'welcomeGuide', false);
+    const editPost = wp?.data?.select?.('core/edit-post');
+    if (editPost?.isFeatureActive?.('welcomeGuide')) {
+      wp.data.dispatch('core/edit-post').toggleFeature('welcomeGuide');
+    }
+  });
 }
 
 /**
