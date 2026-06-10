@@ -30,6 +30,8 @@ final class PromptBuilder {
 		$lines[] = '';
 		$lines[] = 'Page structure: compose a page as a sequence of distinct sections. Wrap each section\'s blocks in a full-width core/group that uses the theme\'s constrained layout: attributes {"tagName":"section","align":"full","className":"starter-section","layout":{"type":"constrained"}}. The constrained layout spans the full width while centering inner content at the theme\'s content width — never use layout type "default" (flow), which overrides the theme\'s width settings and makes content run edge to edge. For blocks that should fill the wider band (multi-column grids, stat or feature rows, wide media), set "align":"wide" so they pick up the theme\'s wide width. Do not assume fixed pixel widths — rely on the active theme\'s content/wide sizes. Do not emit a flat list of top-level paragraphs or headings — group them into their section.';
 		$lines[] = '';
+		$lines[] = 'Testimonials: for a customer-quote / "what clients say" / Kundenstimmen section, emit one pediment/testimonial-grid (align "wide") containing pediment/testimonial children (quote + authorName + authorRole), not a stack of pediment/pull-quote blocks. Use pediment/pull-quote only for a single standalone highlighted quote.';
+		$lines[] = '';
 		$lines[] = 'Available blocks (use these — do not invent block names):';
 		foreach ( $this->blockSchema as $name => $info ) {
 			$description = isset( $info['description'] ) ? (string) $info['description'] : '';
