@@ -89,11 +89,13 @@ final class TurnRunner {
 				return;
 			}
 
-			$assistantContent = [];
-			$toolResults      = [];
-			$stop_reason      = null;
-			$current_tu       = null;
-			$current_text     = null; // Aggregated text per content_block index; null when no text block is open.
+			$assistantContent  = [];
+			$toolResults       = [];
+			$stop_reason       = null;
+			$current_tu        = null;
+			$current_server_tu = null; // Anthropic-hosted tool call (web_search/web_fetch); echoed back, never applied client-side.
+			$current_result    = null; // Server tool result block; arrives whole and is echoed back verbatim to keep fetched content in context.
+			$current_text      = null; // Aggregated text per content_block index; null when no text block is open.
 
 			foreach ( $result as $event ) {
 				if ( $this->store->isAborted( $turn_id ) ) {
@@ -110,6 +112,23 @@ final class TurnRunner {
 							'name'  => (string) ( $event['content_block']['name'] ?? '' ),
 							'input' => '',
 						];
+					} elseif ( 'server_tool_use' === $block_type ) {
+						// web_search / web_fetch — input streams like a tool_use, but the
+						// call runs on Anthropic's side, so we never dispatch it.
+						$current_server_tu = [
+							'type'  => 'server_tool_use',
+							'id'    => (string) ( $event['content_block']['id']   ?? '' ),
+							'name'  => (string) ( $event['content_block']['name'] ?? '' ),
+							'input' => '',
+						];
+					} elseif ( str_ends_with( $block_type, '_tool_result' ) ) {
+						// Any server-side tool result: web_search/web_fetch, plus the
+						// code_execution result that web_fetch's dynamic filtering emits to
+						// trim a fetched page before it hits context. These arrive fully
+						// formed in content_block_start (no deltas); stash whole so every
+						// server_tool_use is echoed back with its matching result —
+						// Anthropic 400s on a server_tool_use that has no result block.
+						$current_result = is_array( $event['content_block'] ?? null ) ? $event['content_block'] : null;
 					} elseif ( 'text' === $block_type ) {
 						$current_text = '';
 					}
@@ -126,8 +145,12 @@ final class TurnRunner {
 							$current_text = '';
 						}
 						$current_text .= $text;
-					} elseif ( 'input_json_delta' === ( $delta['type'] ?? '' ) && null !== $current_tu ) {
-						$current_tu['input'] .= (string) ( $delta['partial_json'] ?? '' );
+					} elseif ( 'input_json_delta' === ( $delta['type'] ?? '' ) ) {
+						if ( null !== $current_tu ) {
+							$current_tu['input'] .= (string) ( $delta['partial_json'] ?? '' );
+						} elseif ( null !== $current_server_tu ) {
+							$current_server_tu['input'] .= (string) ( $delta['partial_json'] ?? '' );
+						}
 					}
 					continue;
 				}
@@ -164,6 +187,23 @@ final class TurnRunner {
 							'is_error'    => ! empty( $tool_result['is_error'] ),
 						];
 						$current_tu = null;
+					} elseif ( null !== $current_server_tu ) {
+						// Echo the server tool call back verbatim — no client-side apply, no
+						// tool_result of our own (Anthropic runs it and returns the result
+						// as its own block). input must serialize as an object, never [].
+						$stu_input          = json_decode( $current_server_tu['input'], true );
+						$assistantContent[] = [
+							'type'  => 'server_tool_use',
+							'id'    => $current_server_tu['id'],
+							'name'  => $current_server_tu['name'],
+							'input' => is_array( $stu_input ) && [] !== $stu_input ? $stu_input : new \stdClass(),
+						];
+						$current_server_tu = null;
+					} elseif ( null !== $current_result ) {
+						// Echo the fetch/search result block verbatim so the retrieved page
+						// stays in context across the remaining loop iterations.
+						$assistantContent[] = $current_result;
+						$current_result     = null;
 					} elseif ( null !== $current_text ) {
 						// Only emit the text block if it has content — empty blocks get rejected.
 						if ( '' !== $current_text ) {
@@ -183,6 +223,28 @@ final class TurnRunner {
 				return;
 			}
 
+			// 'pause_turn' means Anthropic's server-side tool loop (web_search /
+			// web_fetch) hit its internal iteration limit mid-execution. The
+			// assistant content ends in a server_tool_use; re-send it verbatim with
+			// NO new user message and the API resumes the paused tool automatically.
+			// Injecting a user message here would derail that resume.
+			if ( 'pause_turn' === $stop_reason ) {
+				if ( [] === $assistantContent ) {
+					$this->store->fail(
+						$turn_id,
+						'response_truncated',
+						'The response paused before anything could be applied. Ask me to continue.'
+					);
+					return;
+				}
+				$messages[] = [ 'role' => 'assistant', 'content' => $assistantContent ];
+				// Defensive: a stray client tool_result must not be orphaned.
+				if ( [] !== $toolResults ) {
+					$messages[] = [ 'role' => 'user', 'content' => $toolResults ];
+				}
+				continue;
+			}
+
 			// Nothing usable survived this round (e.g. the only block was a
 			// truncated tool_use). Sending an empty assistant message back is
 			// rejected by Anthropic ("text content blocks must be non-empty");
@@ -196,9 +258,13 @@ final class TurnRunner {
 				return;
 			}
 
-			// Continue the loop: append assistant turn + tool_results, then call again.
+			// Continue the loop: append assistant turn, plus tool_results when present.
+			// A round that only ran server tools (web_fetch) yields assistant content
+			// but no client tool_result — appending an empty user message 400s.
 			$messages[] = [ 'role' => 'assistant', 'content' => $assistantContent ];
-			$messages[] = [ 'role' => 'user',      'content' => $toolResults ];
+			if ( [] !== $toolResults ) {
+				$messages[] = [ 'role' => 'user', 'content' => $toolResults ];
+			}
 		}
 
 		// Iteration cap.

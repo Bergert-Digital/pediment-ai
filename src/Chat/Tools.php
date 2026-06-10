@@ -60,7 +60,7 @@ final class Tools {
 			$blockSchema['allOf'] = $conditionals;
 		}
 
-		return [
+		$blockTools = [
 			[
 				'name'         => 'insert_block',
 				'description'  => 'Insert a new block into the post. Use after_client_id+position to place it; use position=end+after_client_id=null to append.',
@@ -119,6 +119,38 @@ final class Tools {
 				],
 			],
 		];
+
+		// Anthropic-hosted server tools: let the model read the live web so it can
+		// build a page from a reference URL or look one up by name. These execute
+		// on Anthropic's side — no input_schema, no client-side dispatch. web_fetch
+		// may only retrieve URLs already present in the conversation (or surfaced by
+		// web_search), which is exactly the "base this page on <url>" flow.
+		$webTools = [
+			[
+				'type'     => 'web_search_20260209',
+				'name'     => 'web_search',
+				'max_uses' => 5,
+			],
+			[
+				'type'     => 'web_fetch_20260209',
+				'name'     => 'web_fetch',
+				'max_uses' => 5,
+			],
+		];
+
+		/**
+		 * Filter the Anthropic server-side web tools offered to the model.
+		 *
+		 * Return an empty array to switch off web access entirely, or add
+		 * `allowed_domains` / `blocked_domains` to bound what web_fetch may retrieve.
+		 * web_fetch can pull arbitrary user-supplied URLs into context, so restrict
+		 * it when the editor handles untrusted input alongside sensitive data.
+		 *
+		 * @param array<int,array<string,mixed>> $webTools Default web tool definitions.
+		 */
+		$webTools = (array) apply_filters( 'pediment_ai_web_tools', $webTools );
+
+		return array_merge( $blockTools, $webTools );
 	}
 
 	/**

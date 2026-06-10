@@ -14,12 +14,36 @@ class ToolsTest extends \WP_UnitTestCase {
 		return new Tools( $schema, new Validator( $schema ) );
 	}
 
-	public function test_definitions_lists_all_five_tools(): void {
+	public function test_definitions_lists_block_and_web_tools(): void {
 		$names = array_column( $this->tools()->definitions(), 'name' );
 		$this->assertEqualsCanonicalizing(
-			[ 'insert_block', 'update_block', 'delete_block', 'move_block', 'read_block' ],
+			[ 'insert_block', 'update_block', 'delete_block', 'move_block', 'read_block', 'web_search', 'web_fetch' ],
 			$names
 		);
+	}
+
+	public function test_web_tools_are_server_side_definitions(): void {
+		$byName = [];
+		foreach ( $this->tools()->definitions() as $tool ) {
+			$byName[ $tool['name'] ] = $tool;
+		}
+
+		// Server tools are typed (no input_schema) — Anthropic runs them.
+		$this->assertSame( 'web_search_20260209', $byName['web_search']['type'] );
+		$this->assertSame( 'web_fetch_20260209',  $byName['web_fetch']['type'] );
+		$this->assertArrayNotHasKey( 'input_schema', $byName['web_fetch'] );
+		// Bounded so a single turn cannot fetch without limit.
+		$this->assertSame( 5, $byName['web_fetch']['max_uses'] );
+	}
+
+	public function test_web_tools_filter_can_disable_web_access(): void {
+		add_filter( 'pediment_ai_web_tools', '__return_empty_array' );
+		$names = array_column( $this->tools()->definitions(), 'name' );
+		remove_all_filters( 'pediment_ai_web_tools' );
+
+		$this->assertNotContains( 'web_fetch', $names );
+		$this->assertNotContains( 'web_search', $names );
+		$this->assertContains( 'insert_block', $names );
 	}
 
 	public function test_apply_insert_block_returns_client_id_and_mutates_tree(): void {

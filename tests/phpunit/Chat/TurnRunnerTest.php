@@ -287,4 +287,215 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 		$this->assertSame( 'error', $msg['status'] );
 		$this->assertSame( 'response_truncated', $msg['error']['code'] );
 	}
+
+	public function test_web_tool_blocks_are_echoed_back_and_only_block_tools_apply(): void {
+		$conv    = $this->store->getOrCreate( 1, 1 );
+		$turn_id = $this->store->startAssistantTurn( $conv['id'] );
+
+		// Call 1: text + a server web_fetch + its result block + a client insert_block,
+		// stop_reason=tool_use. Call 2: capture args, then end the turn.
+		$provider = new class implements \PedimentAi\Anthropic\ProviderInterface {
+			public int $calls      = 0;
+			public array $lastArgs = [];
+			public function messages( array $args ) { return new \WP_Error( 'unused', 'unused' ); }
+			public function stream_messages( array $args ) {
+				$this->calls++;
+				$this->lastArgs = $args;
+				if ( 1 === $this->calls ) {
+					return ( static function () {
+						yield [ 'type' => 'content_block_start', 'content_block' => [ 'type' => 'text' ] ];
+						yield [ 'type' => 'content_block_delta', 'delta' => [ 'type' => 'text_delta', 'text' => 'Reading the site' ] ];
+						yield [ 'type' => 'content_block_stop' ];
+						yield [ 'type' => 'content_block_start', 'content_block' => [ 'type' => 'server_tool_use', 'id' => 'srv_1', 'name' => 'web_fetch' ] ];
+						yield [ 'type' => 'content_block_delta', 'delta' => [ 'type' => 'input_json_delta', 'partial_json' => '{"url":"https://berlinerteam.de"}' ] ];
+						yield [ 'type' => 'content_block_stop' ];
+						yield [ 'type' => 'content_block_start', 'content_block' => [
+							'type'        => 'web_fetch_tool_result',
+							'tool_use_id' => 'srv_1',
+							'content'     => [
+								'type'    => 'web_fetch_result',
+								'url'     => 'https://berlinerteam.de',
+								'content' => [ 'type' => 'document', 'source' => [ 'type' => 'text', 'media_type' => 'text/plain', 'data' => 'Berliner Team — we build things' ] ],
+							],
+						] ];
+						yield [ 'type' => 'content_block_stop' ];
+						yield [ 'type' => 'content_block_start', 'content_block' => [ 'type' => 'tool_use', 'id' => 'tA', 'name' => 'insert_block' ] ];
+						yield [ 'type' => 'content_block_delta', 'delta' => [ 'type' => 'input_json_delta', 'partial_json' => '{"position":"end","block":{"name":"core/paragraph","attributes":{"content":"Berliner Team"}}}' ] ];
+						yield [ 'type' => 'content_block_stop' ];
+						yield [ 'type' => 'message_delta', 'delta' => [ 'stop_reason' => 'tool_use' ] ];
+					} )();
+				}
+				return ( static function () {
+					yield [ 'type' => 'content_block_start', 'content_block' => [ 'type' => 'text' ] ];
+					yield [ 'type' => 'content_block_delta', 'delta' => [ 'type' => 'text_delta', 'text' => 'Done' ] ];
+					yield [ 'type' => 'content_block_stop' ];
+					yield [ 'type' => 'message_delta', 'delta' => [ 'stop_reason' => 'end_turn' ] ];
+				} )();
+			}
+		};
+
+		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $provider, 'claude-sonnet-4-6' );
+		$runner->run(
+			turn_id:        $turn_id,
+			tree:           new VirtualTree( [] ),
+			history:        [],
+			selectedId:     null,
+			currentUserMsg: 'build a page based on https://berlinerteam.de'
+		);
+
+		$msg = $this->store->getMessage( $turn_id );
+		$this->assertSame( 'complete', $msg['status'] );
+		// Server tools run on Anthropic's side — only the block tool is applied/recorded.
+		$this->assertCount( 1, $msg['tool_calls'] );
+		$this->assertSame( 'insert_block', $msg['tool_calls'][0]['tool'] );
+
+		// The 2nd request must echo the server call + its result so the fetched page
+		// stays in context, alongside the client tool_use.
+		$assistant = null;
+		foreach ( (array) $provider->lastArgs['messages'] as $m ) {
+			if ( 'assistant' === ( $m['role'] ?? '' ) ) {
+				$assistant = $m;
+			}
+		}
+		$this->assertNotNull( $assistant );
+		$types = array_column( $assistant['content'], 'type' );
+		$this->assertContains( 'server_tool_use', $types );
+		$this->assertContains( 'web_fetch_tool_result', $types );
+		$this->assertContains( 'tool_use', $types );
+
+		foreach ( $assistant['content'] as $b ) {
+			if ( 'server_tool_use' === $b['type'] ) {
+				$this->assertSame( 'web_fetch', $b['name'] );
+				$this->assertSame( 'https://berlinerteam.de', $b['input']['url'] );
+			}
+		}
+	}
+
+	public function test_dynamic_filtering_code_execution_result_is_echoed_back(): void {
+		$conv    = $this->store->getOrCreate( 1, 1 );
+		$turn_id = $this->store->startAssistantTurn( $conv['id'] );
+
+		// web_fetch_20260209 dynamic filtering: alongside the fetch, the model emits a
+		// code_execution server_tool_use + its code_execution_tool_result to trim the
+		// page. Both halves of every server tool call must be echoed back — Anthropic
+		// 400s on a server_tool_use whose result block is missing. Call 2 reproduces
+		// that 400 if any server_tool_use id lacks a matching *_tool_result.
+		$provider = new class implements \PedimentAi\Anthropic\ProviderInterface {
+			public int $calls = 0;
+			public function messages( array $args ) { return new \WP_Error( 'unused', 'unused' ); }
+			public function stream_messages( array $args ) {
+				$this->calls++;
+				if ( 1 === $this->calls ) {
+					return ( static function () {
+						yield [ 'type' => 'content_block_start', 'content_block' => [ 'type' => 'server_tool_use', 'id' => 'srv_fetch', 'name' => 'web_fetch' ] ];
+						yield [ 'type' => 'content_block_delta', 'delta' => [ 'type' => 'input_json_delta', 'partial_json' => '{"url":"https://berlinerteam.de"}' ] ];
+						yield [ 'type' => 'content_block_stop' ];
+						yield [ 'type' => 'content_block_start', 'content_block' => [ 'type' => 'web_fetch_tool_result', 'tool_use_id' => 'srv_fetch', 'content' => [ 'type' => 'web_fetch_result', 'url' => 'https://berlinerteam.de' ] ] ];
+						yield [ 'type' => 'content_block_stop' ];
+						yield [ 'type' => 'content_block_start', 'content_block' => [ 'type' => 'server_tool_use', 'id' => 'srv_code', 'name' => 'code_execution' ] ];
+						yield [ 'type' => 'content_block_delta', 'delta' => [ 'type' => 'input_json_delta', 'partial_json' => '{"code":"print(1)"}' ] ];
+						yield [ 'type' => 'content_block_stop' ];
+						yield [ 'type' => 'content_block_start', 'content_block' => [ 'type' => 'code_execution_tool_result', 'tool_use_id' => 'srv_code', 'content' => [ 'type' => 'code_execution_result', 'stdout' => 'filtered' ] ] ];
+						yield [ 'type' => 'content_block_stop' ];
+						yield [ 'type' => 'content_block_start', 'content_block' => [ 'type' => 'tool_use', 'id' => 'tA', 'name' => 'insert_block' ] ];
+						yield [ 'type' => 'content_block_delta', 'delta' => [ 'type' => 'input_json_delta', 'partial_json' => '{"position":"end","block":{"name":"core/paragraph","attributes":{"content":"hi"}}}' ] ];
+						yield [ 'type' => 'content_block_stop' ];
+						yield [ 'type' => 'message_delta', 'delta' => [ 'stop_reason' => 'tool_use' ] ];
+					} )();
+				}
+				// Reproduce the real Anthropic 400: every server_tool_use needs a result.
+				$server_ids = [];
+				$result_ids = [];
+				foreach ( (array) ( $args['messages'] ?? [] ) as $m ) {
+					if ( 'assistant' !== ( $m['role'] ?? '' ) ) {
+						continue;
+					}
+					foreach ( (array) ( $m['content'] ?? [] ) as $b ) {
+						$type = (string) ( $b['type'] ?? '' );
+						if ( 'server_tool_use' === $type ) {
+							$server_ids[] = (string) ( $b['id'] ?? '' );
+						} elseif ( str_ends_with( $type, '_tool_result' ) ) {
+							$result_ids[] = (string) ( $b['tool_use_id'] ?? '' );
+						}
+					}
+				}
+				foreach ( $server_ids as $id ) {
+					if ( ! in_array( $id, $result_ids, true ) ) {
+						return new \WP_Error( 'pediment_ai_anthropic_400', "server_tool_use {$id} was found without a corresponding tool_result block" );
+					}
+				}
+				return ( static function () {
+					yield [ 'type' => 'content_block_start', 'content_block' => [ 'type' => 'text' ] ];
+					yield [ 'type' => 'content_block_delta', 'delta' => [ 'type' => 'text_delta', 'text' => 'Done' ] ];
+					yield [ 'type' => 'content_block_stop' ];
+					yield [ 'type' => 'message_delta', 'delta' => [ 'stop_reason' => 'end_turn' ] ];
+				} )();
+			}
+		};
+
+		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $provider, 'claude-sonnet-4-6' );
+		$runner->run(
+			turn_id:        $turn_id,
+			tree:           new VirtualTree( [] ),
+			history:        [],
+			selectedId:     null,
+			currentUserMsg: 'rebuild this page from https://berlinerteam.de'
+		);
+
+		$msg = $this->store->getMessage( $turn_id );
+		$this->assertSame( 'complete', $msg['status'], 'code_execution result must be echoed back, not orphaned' );
+		$this->assertSame( 2, $provider->calls );
+		$this->assertCount( 1, $msg['tool_calls'] );
+	}
+
+	public function test_pause_turn_resends_assistant_without_a_new_user_message(): void {
+		$conv    = $this->store->getOrCreate( 1, 1 );
+		$turn_id = $this->store->startAssistantTurn( $conv['id'] );
+
+		// Call 1: a server web_fetch that pauses (stop_reason=pause_turn). Call 2:
+		// capture the messages, then finish.
+		$provider = new class implements \PedimentAi\Anthropic\ProviderInterface {
+			public int $calls               = 0;
+			public array $secondCallMessages = [];
+			public function messages( array $args ) { return new \WP_Error( 'unused', 'unused' ); }
+			public function stream_messages( array $args ) {
+				$this->calls++;
+				if ( 1 === $this->calls ) {
+					return ( static function () {
+						yield [ 'type' => 'content_block_start', 'content_block' => [ 'type' => 'server_tool_use', 'id' => 'srv_1', 'name' => 'web_fetch' ] ];
+						yield [ 'type' => 'content_block_delta', 'delta' => [ 'type' => 'input_json_delta', 'partial_json' => '{"url":"https://berlinerteam.de"}' ] ];
+						yield [ 'type' => 'content_block_stop' ];
+						yield [ 'type' => 'message_delta', 'delta' => [ 'stop_reason' => 'pause_turn' ] ];
+					} )();
+				}
+				$this->secondCallMessages = (array) ( $args['messages'] ?? [] );
+				return ( static function () {
+					yield [ 'type' => 'content_block_start', 'content_block' => [ 'type' => 'text' ] ];
+					yield [ 'type' => 'content_block_delta', 'delta' => [ 'type' => 'text_delta', 'text' => 'Resumed and done' ] ];
+					yield [ 'type' => 'content_block_stop' ];
+					yield [ 'type' => 'message_delta', 'delta' => [ 'stop_reason' => 'end_turn' ] ];
+				} )();
+			}
+		};
+
+		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $provider, 'claude-sonnet-4-6' );
+		$runner->run(
+			turn_id:        $turn_id,
+			tree:           new VirtualTree( [] ),
+			history:        [],
+			selectedId:     null,
+			currentUserMsg: 'build from https://berlinerteam.de'
+		);
+
+		$msg = $this->store->getMessage( $turn_id );
+		$this->assertSame( 'complete', $msg['status'] );
+		$this->assertSame( 2, $provider->calls, 'pause_turn must trigger a resume request' );
+
+		// The resume request ends with the assistant turn (the paused server_tool_use),
+		// NOT a new user message — that is how Anthropic detects the resume.
+		$last  = end( $provider->secondCallMessages );
+		$this->assertSame( 'assistant', $last['role'] );
+		$types = array_column( $last['content'], 'type' );
+		$this->assertContains( 'server_tool_use', $types );
+	}
 }
