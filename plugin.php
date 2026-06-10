@@ -28,10 +28,9 @@ if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
 	require __DIR__ . '/vendor/autoload.php';
 }
 
-// Action Scheduler's procedural API (as_schedule_single_action etc.) is registered
-// by its bootstrap file, which Composer's autoloader does not execute.
-if ( file_exists( __DIR__ . '/vendor/woocommerce/action-scheduler/action-scheduler.php' ) ) {
-	require_once __DIR__ . '/vendor/woocommerce/action-scheduler/action-scheduler.php';
+// One-click updates from GitHub Releases (no manual zip uploads).
+if ( class_exists( \PedimentAi\Updater::class ) ) {
+	\PedimentAi\Updater::register( PEDIMENT_AI_PLUGIN_FILE );
 }
 
 require_once __DIR__ . '/src/Schema/tables.php';
