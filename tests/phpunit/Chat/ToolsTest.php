@@ -78,6 +78,59 @@ class ToolsTest extends \WP_UnitTestCase {
 		$this->assertSame( 'New', $tree->find( 'a' )['attributes']['content'] );
 	}
 
+	public function test_apply_update_block_repairs_orphaned_unicode_escapes(): void {
+		// The model occasionally transcribes a JSON escape body (& → &) without
+		// its backslash, landing literal "u0026" in the post. Repair at the boundary.
+		$tree = new VirtualTree( [
+			[ 'clientId' => 'a', 'name' => 'core/heading', 'attributes' => [ 'content' => 'Old' ], 'innerBlocks' => [] ],
+		] );
+		$this->tools()->apply( $tree, 'update_block', [ 'client_id' => 'a', 'content' => 'Transfer u0026 Verankerung' ] );
+		$this->assertSame( 'Transfer & Verankerung', $tree->find( 'a' )['attributes']['content'] );
+	}
+
+	public function test_apply_update_block_repairs_escapes_in_attrs(): void {
+		$tree = new VirtualTree( [
+			[ 'clientId' => 'a', 'name' => 'core/heading', 'attributes' => [ 'content' => 'x' ], 'innerBlocks' => [] ],
+		] );
+		$this->tools()->apply( $tree, 'update_block', [
+			'client_id' => 'a',
+			'attrs'     => [ 'content' => 'A u003c B u003e C u0022quoteu0022' ],
+		] );
+		$this->assertSame( 'A < B > C "quote"', $tree->find( 'a' )['attributes']['content'] );
+	}
+
+	public function test_apply_insert_block_repairs_escapes_in_nested_children(): void {
+		$schema = [
+			'core/group'     => [ 'attributes' => [], 'allowsInnerBlocks' => true ],
+			'core/paragraph' => [ 'attributes' => [ 'content' => [ 'type' => 'string' ] ], 'allowsInnerBlocks' => false ],
+		];
+		$tools = new Tools( $schema, new Validator( $schema ) );
+		$tree  = new VirtualTree( [] );
+		$tools->apply( $tree, 'insert_block', [
+			'after_client_id' => null,
+			'position'        => 'end',
+			'block'           => [
+				'name'        => 'core/group',
+				'attributes'  => [ 'tagName' => 'section u0026 wrap' ],
+				'innerBlocks' => [
+					[ 'name' => 'core/paragraph', 'attributes' => [ 'content' => 'Soll u0026 Haben' ], 'innerBlocks' => [] ],
+				],
+			],
+		] );
+		$node = $tree->toArray()[0];
+		$this->assertSame( 'section & wrap', $node['attributes']['tagName'] );
+		$this->assertSame( 'Soll & Haben', $node['innerBlocks'][0]['attributes']['content'] );
+	}
+
+	public function test_apply_update_block_leaves_real_text_untouched(): void {
+		// A bare "u" followed by non-escape digits must survive verbatim.
+		$tree = new VirtualTree( [
+			[ 'clientId' => 'a', 'name' => 'core/paragraph', 'attributes' => [ 'content' => 'x' ], 'innerBlocks' => [] ],
+		] );
+		$this->tools()->apply( $tree, 'update_block', [ 'client_id' => 'a', 'content' => 'Ubuntu 0026 release u1234' ] );
+		$this->assertSame( 'Ubuntu 0026 release u1234', $tree->find( 'a' )['attributes']['content'] );
+	}
+
 	public function test_apply_update_block_for_missing_id_returns_error(): void {
 		$tree   = new VirtualTree( [] );
 		$result = $this->tools()->apply( $tree, 'update_block', [ 'client_id' => 'missing', 'content' => 'x' ] );

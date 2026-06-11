@@ -157,12 +157,49 @@ final class Tools {
 	}
 
 	/**
+	 * JSON escape bodies the model sometimes emits with the leading backslash dropped —
+	 * e.g. it transcribes "&" from a fetched page as literal "u0026". Each maps the
+	 * orphaned body back to the character it was meant to be. Limited to the HTML-significant
+	 * set produced by JSON_HEX_* so ordinary prose ("u1234", "Ubuntu") is never touched.
+	 */
+	private const ORPHAN_ESCAPES = [
+		'u0026' => '&',
+		'u003c' => '<',
+		'u003e' => '>',
+		'u0022' => '"',
+		'u0027' => "'",
+	];
+
+	/**
+	 * Recursively repair orphaned JSON unicode-escape bodies in every string the model
+	 * supplied (block content and attribute values, nested children included), before the
+	 * text lands in the tree. clientIds and positions are hex/enum and never match.
+	 *
+	 * @param mixed $value
+	 * @return mixed
+	 */
+	private function repairOrphanEscapes( mixed $value ): mixed {
+		if ( is_string( $value ) ) {
+			return preg_replace_callback(
+				'/u00(?:26|3[ce]|22|27)/i',
+				static fn( array $m ): string => self::ORPHAN_ESCAPES[ strtolower( $m[0] ) ],
+				$value
+			);
+		}
+		if ( is_array( $value ) ) {
+			return array_map( [ $this, 'repairOrphanEscapes' ], $value );
+		}
+		return $value;
+	}
+
+	/**
 	 * Apply a tool call to the virtual tree and return the synthetic tool_result payload.
 	 *
 	 * @param array<string,mixed> $input
 	 * @return array{content:mixed, is_error?:bool}
 	 */
 	public function apply( VirtualTree $tree, string $tool, array $input ): array {
+		$input = $this->repairOrphanEscapes( $input );
 		switch ( $tool ) {
 			case 'insert_block':
 				return $this->applyInsert( $tree, $input );
