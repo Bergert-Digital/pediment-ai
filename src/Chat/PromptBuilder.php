@@ -32,6 +32,8 @@ final class PromptBuilder {
 		$lines[] = '';
 		$lines[] = 'Testimonials: for a customer-quote / "what clients say" / Kundenstimmen section, emit one pediment/testimonial-grid (align "wide") containing pediment/testimonial children (quote + authorName + authorRole), not a stack of pediment/pull-quote blocks. Use pediment/pull-quote only for a single standalone highlighted quote.';
 		$lines[] = '';
+		$lines[] = 'Stats: for a key-figures / "numbers & facts" / Zahlen & Fakten section, emit one pediment/stat-grid (align "wide") containing pediment/stat children (value + label + optional context), so the figures sit side by side. Never emit bare pediment/stat blocks stacked on their own or wrapped in core/columns.';
+		$lines[] = '';
 		$lines[] = 'Available blocks (use these — do not invent block names). A line tagged [contains: …] is a container: build it in ONE insert_block call with each child placed in block.innerBlocks (every child is {name, attributes}). You cannot add children to a container after it exists — there is no insert-into-parent operation. A line tagged [child of: …] may only appear nested inside that parent; never insert it on its own (it is rejected).';
 		foreach ( $this->blockSchema as $name => $info ) {
 			$description = isset( $info['description'] ) ? (string) $info['description'] : '';

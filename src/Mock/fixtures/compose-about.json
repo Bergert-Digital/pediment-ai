@@ -7,7 +7,9 @@
       { "name": "pediment/prose", "attributes": {}, "innerBlocks": [
         { "name": "core/paragraph", "attributes": { "content": "We help product teams ship better marketing sites." }, "innerBlocks": [] }
       ] },
-      { "name": "pediment/stat", "attributes": { "value": "40+", "label": "Sites shipped", "context": "since 2021" }, "innerBlocks": [] }
+      { "name": "pediment/stat-grid", "attributes": {}, "innerBlocks": [
+        { "name": "pediment/stat", "attributes": { "value": "40+", "label": "Sites shipped", "context": "since 2021" }, "innerBlocks": [] }
+      ] }
     ] } }
   ]
 }
