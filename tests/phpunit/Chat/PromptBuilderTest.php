@@ -58,6 +58,30 @@ class PromptBuilderTest extends \WP_UnitTestCase {
 		$this->assertStringContainsString( 'core/group', $prompt );
 	}
 
+	public function test_system_prompt_explains_container_composition_and_hints(): void {
+		$pb     = new PromptBuilder( [
+			'pediment/testimonial-grid' => [
+				'description'        => 'A grid of testimonials.',
+				'attributes'         => [],
+				'allowsInnerBlocks'  => true,
+				'allowedChildBlocks' => [ 'pediment/testimonial' ],
+			],
+			'pediment/testimonial' => [
+				'description'    => 'A testimonial card.',
+				'attributes'     => [ 'quote' => [ 'type' => 'string' ] ],
+				'requiresParent' => [ 'pediment/testimonial-grid' ],
+			],
+		] );
+		$prompt = $pb->systemPrompt();
+
+		// A general rule on how to build a container: one insert_block, children nested.
+		$this->assertStringContainsString( 'innerBlocks', $prompt );
+
+		// Structural hints rendered on each block line so the model knows the relationship.
+		$this->assertStringContainsString( 'contains: pediment/testimonial', $prompt );
+		$this->assertStringContainsString( 'child of: pediment/testimonial-grid', $prompt );
+	}
+
 	public function test_system_prompt_prescribes_theme_respecting_layout(): void {
 		$pb     = new \PedimentAi\Chat\PromptBuilder( [ 'core/group' => [ 'description' => 'A section container.' ] ] );
 		$prompt = $pb->systemPrompt();

@@ -35,7 +35,10 @@ final class Tools {
 			'properties' => [
 				'name'        => [ 'type' => 'string', 'enum' => array_keys( $this->blockSchema ) ],
 				'attributes'  => [ 'type' => 'object' ],
-				'innerBlocks' => [ 'type' => 'array' ],
+				'innerBlocks' => [
+					'type'        => 'array',
+					'description' => 'Nested child blocks for a container block, each {name, attributes, innerBlocks?}. Populate this when inserting a container so its children are created together — there is no way to add children to a container after it exists.',
+				],
 			],
 			'required'   => [ 'name', 'attributes' ],
 		];

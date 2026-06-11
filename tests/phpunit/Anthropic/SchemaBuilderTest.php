@@ -103,4 +103,30 @@ class SchemaBuilderTest extends \WP_UnitTestCase {
 
 		unregister_block_type( 'thirdparty/widget' );
 	}
+
+	public function test_parent_child_pair_exposes_allowed_children_and_requires_parent(): void {
+		\PedimentAi\Anthropic\SchemaBuilder::invalidate();
+
+		register_block_type( 'pediment/demo-grid', [
+			'description' => 'A demo container grid.',
+			'attributes'  => [],
+		] );
+		register_block_type( 'pediment/demo-card', [
+			'description' => 'A demo card.',
+			'attributes'  => [ 'text' => [ 'type' => 'string', 'default' => '' ] ],
+			'parent'      => [ 'pediment/demo-grid' ],
+		] );
+
+		$blocks = ( new SchemaBuilder() )->build( true )['blocks'];
+
+		// Parent advertises the child and that it accepts inner blocks.
+		$this->assertContains( 'pediment/demo-card', $blocks['pediment/demo-grid']['allowedChildBlocks'] );
+		$this->assertTrue( $blocks['pediment/demo-grid']['allowsInnerBlocks'] );
+
+		// Child carries requiresParent so the Validator can reject top-level orphans.
+		$this->assertSame( [ 'pediment/demo-grid' ], $blocks['pediment/demo-card']['requiresParent'] );
+
+		unregister_block_type( 'pediment/demo-card' );
+		unregister_block_type( 'pediment/demo-grid' );
+	}
 }

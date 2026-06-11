@@ -32,10 +32,26 @@ final class PromptBuilder {
 		$lines[] = '';
 		$lines[] = 'Testimonials: for a customer-quote / "what clients say" / Kundenstimmen section, emit one pediment/testimonial-grid (align "wide") containing pediment/testimonial children (quote + authorName + authorRole), not a stack of pediment/pull-quote blocks. Use pediment/pull-quote only for a single standalone highlighted quote.';
 		$lines[] = '';
-		$lines[] = 'Available blocks (use these — do not invent block names):';
+		$lines[] = 'Available blocks (use these — do not invent block names). A line tagged [contains: …] is a container: build it in ONE insert_block call with each child placed in block.innerBlocks (every child is {name, attributes}). You cannot add children to a container after it exists — there is no insert-into-parent operation. A line tagged [child of: …] may only appear nested inside that parent; never insert it on its own (it is rejected).';
 		foreach ( $this->blockSchema as $name => $info ) {
 			$description = isset( $info['description'] ) ? (string) $info['description'] : '';
-			$lines[]     = '' !== $description ? "- {$name} — {$description}" : "- {$name}";
+			$line        = '' !== $description ? "- {$name} — {$description}" : "- {$name}";
+
+			$children = isset( $info['allowedChildBlocks'] ) && is_array( $info['allowedChildBlocks'] )
+				? array_values( array_unique( $info['allowedChildBlocks'] ) )
+				: [];
+			if ( ! empty( $children ) ) {
+				$line .= ' [contains: ' . implode( ', ', $children ) . ' — nest these in innerBlocks]';
+			}
+
+			$parents = isset( $info['requiresParent'] ) && is_array( $info['requiresParent'] )
+				? array_values( $info['requiresParent'] )
+				: [];
+			if ( ! empty( $parents ) ) {
+				$line .= ' [child of: ' . implode( ', ', $parents ) . ' — never insert on its own]';
+			}
+
+			$lines[] = $line;
 		}
 		$prompt = implode( "\n", $lines );
 

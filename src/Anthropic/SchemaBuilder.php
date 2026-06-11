@@ -149,6 +149,10 @@ final class SchemaBuilder {
 					$blocks[ $parent ]['allowsInnerBlocks']    = true;
 				}
 			}
+			// Retain the parent requirement as `requiresParent` so the Validator can reject
+			// a parent-locked child inserted on its own (the insert tools cannot place a
+			// block inside an existing container — children must be nested at insert time).
+			$blocks[ $name ]['requiresParent'] = array_values( (array) $info['onlyAllowedAsChildOf'] );
 			unset( $blocks[ $name ]['onlyAllowedAsChildOf'] );
 		}
 
