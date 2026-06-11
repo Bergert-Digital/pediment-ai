@@ -1,0 +1,40 @@
+name: Release Please
+
+# Opens (and keeps updating) a Release PR on every push to main, computing
+# the next semver from conventional-commit prefixes (feat → minor, fix →
+# patch, BREAKING CHANGE / feat! → major). Merging the Release PR creates
+# the tag + GitHub Release.
+#
+# The release-asset upload is colocated as a downstream job in this same
+# workflow (rather than a separate workflow on `release: published`)
+# because release-please uses GITHUB_TOKEN to create the release, and
+# GITHUB_TOKEN-issued events do not trigger other workflows (GitHub's
+# recursive-workflow protection). Chaining keeps everything in one run.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  attach-zip:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    uses: ./.github/workflows/build-release-zip.yml
+    with:
+      tag: ${{ needs.release-please.outputs.tag_name }}
