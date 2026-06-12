@@ -10,7 +10,7 @@ Editors describe what they want (or pick a quick action), and the assistant perf
 
 - **Primary user:** the editor at a small-to-mid-sized agency client site, working in WP admin. Not a developer. Knows Gutenberg. Wants to draft and polish pages faster without copy-pasting between ChatGPT and the editor.
 - **Buyer:** the agency (Bergert Digital and similar shops) deploying client sites built on top of `pediment`. They install the plugin, configure brand voice + API key once, and the feature shows up for every editor on every page.
-- **Not for:** WordPress.org plugin directory users, end-customers of the websites being built, hobbyists running unconstrained themes. The plugin assumes a curated set of registered blocks and a Bedrock-style install.
+- **Not for:** WordPress.org plugin directory users, end-customers of the websites being built, hobbyists running unconstrained themes. The plugin assumes a curated set of registered blocks and a controlled agency install.
 
 ## Why this exists
 
@@ -37,7 +37,7 @@ An editor opens a fresh page, clicks "Open AI chat," types "Landing page for a B
 **Out of scope (today):**
 
 - Multi-provider (OpenAI, Gemini). Single-provider lets us go deep on Claude features (web_fetch, prompt caching, tool use).
-- Public WordPress.org distribution. We ship via Composer to known-good Bedrock installs.
+- Public WordPress.org distribution. We ship GitHub Release zips to known-good agency installs.
 - Image generation / multimodal input.
 - Cross-post / cross-site context.
 - Workflow features (approvals, drafts visible to specific roles, scheduled publishing).

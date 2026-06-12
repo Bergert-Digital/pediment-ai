@@ -6,7 +6,7 @@ Project-level guidance for coding agents working in this repo. User-level instru
 
 WordPress plugin that adds AI-powered authoring to `pediment` via three flows: **Compose** (generate a fresh page from a prompt), **Edit** (rewrite an existing page), **Refine** (mutate a single block). All flows are moving into a single **chat sidebar** in the Gutenberg editor — see `docs/VISION.md`.
 
-Distribution: `composer require bergert/pediment-ai` into a Bedrock-based client site. Not a public WordPress.org plugin.
+Distribution: GitHub Release zip (`pediment-ai.zip`) installed via wp-admin, with one-click self-updates (plugin-update-checker). Not a public WordPress.org plugin.
 
 ## Branches
 

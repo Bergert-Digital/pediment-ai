@@ -8,13 +8,11 @@ WordPress plugin that adds AI-powered authoring to the [pediment](https://github
 - `pediment` (Plan A) installed and active
 - Anthropic API key
 
-## Install (in a Bedrock client repo)
+## Install
 
-```bash
-composer require bergert/pediment-ai
-```
+Upload `pediment-ai.zip` from the latest [GitHub Release](https://github.com/Bergert-Digital/Pediment-AI/releases) via **Plugins → Add New → Upload Plugin**, then activate. After the first install, updates arrive one-click through the normal wp-admin Updates screen.
 
-Set `ANTHROPIC_API_KEY` in `.env`. The plugin reads from the env constant when set; otherwise it falls back to the encrypted key in Settings → Pediment AI.
+Define `ANTHROPIC_API_KEY` in `wp-config.php` — the plugin reads the constant when set; otherwise it falls back to the key in Settings → Pediment AI, where it is stored encrypted.
 
 ## Three flows
 

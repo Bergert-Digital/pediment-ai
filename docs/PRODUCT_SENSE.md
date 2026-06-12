@@ -6,7 +6,7 @@ When you finish a task, don't just check the code compiles and tests pass. Open 
 
 Imagine Anja — content lead at a German physiotherapy clinic chain. She:
 
-- Manages 6 sites on Bedrock installs, each running `pediment`.
+- Manages 6 sites, each running `pediment`.
 - Is comfortable in Gutenberg but doesn't know what a "block" or "REST endpoint" is.
 - Drafts in German, occasionally English.
 - Has roughly 12 minutes between meetings and wants to ship a "Services" page in that window.
