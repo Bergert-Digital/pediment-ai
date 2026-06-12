@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/Bergert-Digital/Pediment-AI/compare/v0.3.0...v0.3.1) (2026-06-12)
+
+
+### Bug Fixes
+
+* **meta:** correct plugin homepage URL to Bergert-Digital org ([60839e9](https://github.com/Bergert-Digital/Pediment-AI/commit/60839e906376449bae7724a95275820dda230a21))
+
 ## [0.3.0](https://github.com/Bergert-Digital/Pediment-AI/compare/v0.2.0...v0.3.0) (2026-06-11)
 
 
