@@ -3,7 +3,9 @@
  * Plugin Name:       Pediment AI
  * Plugin URI:        https://github.com/Bergert-Digital/Pediment-AI
  * Description:       Gutenberg AI composer for pediment: compose, edit, and refine pages with Claude.
- * Version:           0.1.0
+ * x-release-please-start-version
+ * Version:           0.3.2
+ * x-release-please-end
  * Requires at least: 6.4
  * Requires PHP:      8.1
  * Author:            Jonas Bergert
@@ -19,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'PEDIMENT_AI_VERSION', '0.2.0' );
+define( 'PEDIMENT_AI_VERSION', '0.3.2' ); // Bumped on release by release-please (x-release-please-version).
 define( 'PEDIMENT_AI_PLUGIN_FILE', __FILE__ );
 define( 'PEDIMENT_AI_PLUGIN_DIR', __DIR__ );
 define( 'PEDIMENT_AI_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
