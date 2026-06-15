@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.3](https://github.com/Bergert-Digital/Pediment-AI/compare/v0.3.2...v0.3.3) (2026-06-15)
+
+
+### Bug Fixes
+
+* **updates:** bump plugin.php version via release-please generic updater ([408da4d](https://github.com/Bergert-Digital/Pediment-AI/commit/408da4d6e0cd28d67ae81f7cdafdfe6a10d7f97f))
+* **updates:** bump plugin.php version via release-please so updates are detected ([#16](https://github.com/Bergert-Digital/Pediment-AI/issues/16)) ([22f0024](https://github.com/Bergert-Digital/Pediment-AI/commit/22f0024d77394e012a640e5245167dc0db1090bc))
+
 ## [0.3.2](https://github.com/Bergert-Digital/Pediment-AI/compare/v0.3.1...v0.3.2) (2026-06-12)
 
 
