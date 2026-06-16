@@ -55,6 +55,21 @@ final class SchemaBuilder {
 			],
 			'allowsInnerBlocks' => false,
 		],
+		'core/buttons' => [
+			'description'        => 'A row of one or more buttons. Use for an inline call-to-action button inside a section — NOT pediment/cta, which is a whole standalone banner.',
+			'attributes'         => [],
+			'allowsInnerBlocks'  => true,
+			'allowedChildBlocks' => [ 'core/button' ],
+		],
+		'core/button' => [
+			'description'       => 'A single button. Its label goes in the `text` attribute; set `url` if you know the link target.',
+			'attributes'        => [
+				'text' => [ 'type' => 'string' ],
+				'url'  => [ 'type' => 'string' ],
+			],
+			'allowsInnerBlocks' => false,
+			'requiresParent'    => [ 'core/buttons' ],
+		],
 		'core/separator' => [
 			'description'       => 'A horizontal separator.',
 			'attributes'        => [],
