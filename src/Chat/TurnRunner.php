@@ -19,13 +19,18 @@ final class TurnRunner {
 	private const MAX_ITERATIONS = 20;
 	private const MAX_TOKENS     = 16384;
 
+	private readonly PageFetcherInterface $pageFetcher;
+
 	public function __construct(
 		private readonly ConversationStore $store,
 		private readonly Tools $tools,
 		private readonly PromptBuilder $prompts,
 		private readonly ProviderInterface $provider,
-		private readonly string $model
-	) {}
+		private readonly string $model,
+		?PageFetcherInterface $pageFetcher = null
+	) {
+		$this->pageFetcher = $pageFetcher ?? new PageFetcher();
+	}
 
 	/**
 	 * @param array<int,array<string,mixed>> $history Prior conversation messages (role+content).
@@ -78,6 +83,10 @@ final class TurnRunner {
 		// glued together ("…failed.Let me…").
 		$streamed_text = false;
 
+		// URLs we have already retried server-side after a hosted web_fetch failure,
+		// so the fallback fires at most once per URL and cannot loop.
+		$fallbackAttempted = [];
+
 		for ( $i = 0; $i < $max_iterations; $i++ ) {
 			if ( $this->store->isAborted( $turn_id ) ) {
 				return;
@@ -98,6 +107,8 @@ final class TurnRunner {
 
 			$assistantContent  = [];
 			$toolResults       = [];
+			$fetchUrlById      = []; // server_tool_use id => url, for web_fetch calls this round.
+			$failedFetchUrls   = []; // URLs whose web_fetch result errored this round.
 			$stop_reason       = null;
 			$current_tu        = null;
 			$current_server_tu = null; // Anthropic-hosted tool call (web_search/web_fetch); echoed back, never applied client-side.
@@ -218,6 +229,11 @@ final class TurnRunner {
 							'name'  => $current_server_tu['name'],
 							'input' => is_array( $stu_input ) && [] !== $stu_input ? $stu_input : new \stdClass(),
 						];
+						// Remember which URL each web_fetch call targeted so a failed result
+						// (matched by tool_use_id below) can be retried server-side.
+						if ( 'web_fetch' === $current_server_tu['name'] && is_array( $stu_input ) && isset( $stu_input['url'] ) ) {
+							$fetchUrlById[ $current_server_tu['id'] ] = (string) $stu_input['url'];
+						}
 						$current_server_tu = null;
 					} elseif ( null !== $current_result ) {
 						// Server-side fetch/search can fail (e.g. web_fetch returns
@@ -233,6 +249,10 @@ final class TurnRunner {
 								'output'   => [ 'error_code' => $server_err ],
 								'is_error' => true,
 							] );
+							$tuid = (string) ( $current_result['tool_use_id'] ?? '' );
+							if ( isset( $fetchUrlById[ $tuid ] ) ) {
+								$failedFetchUrls[] = $fetchUrlById[ $tuid ];
+							}
 						}
 						// Echo the fetch/search result block verbatim so the retrieved page
 						// stays in context across the remaining loop iterations.
@@ -249,6 +269,39 @@ final class TurnRunner {
 				}
 				if ( 'message_delta' === $type ) {
 					$stop_reason = (string) ( $event['delta']['stop_reason'] ?? '' );
+				}
+			}
+
+			// Hosted web_fetch could not reach one or more URLs its egress is blocked
+			// from. This host often can — retrieve each page server-side and feed its
+			// text back so the model grounds the build in real content instead of
+			// giving up. At most once per URL (see $fallbackAttempted). Skipped on
+			// pause_turn, where a synthetic message would derail the tool's resume.
+			if ( 'pause_turn' !== $stop_reason && [] !== $assistantContent ) {
+				$recover  = array_values( array_diff( array_unique( $failedFetchUrls ), $fallbackAttempted ) );
+				$injected = [];
+				foreach ( $recover as $url ) {
+					$fallbackAttempted[] = $url;
+					$content             = $this->pageFetcher->fetch( $url );
+					if ( null !== $content ) {
+						$injected[] = "Content fetched from {$url}:\n\n{$content}";
+					}
+				}
+				if ( [] !== $injected ) {
+					$this->store->recordToolCall( $turn_id, [
+						'tool'     => 'web_fetch_fallback',
+						'input'    => [ 'urls' => $recover ],
+						'output'   => [ 'recovered' => count( $injected ) ],
+						'is_error' => false,
+					] );
+					$messages[]    = [ 'role' => 'assistant', 'content' => $assistantContent ];
+					$userContent   = $toolResults;
+					$userContent[] = [
+						'type' => 'text',
+						'text' => 'The web_fetch tool could not retrieve the requested page, but I fetched its content for you server-side. Use it to build the page — mirror its structure, copy, and tone.' . "\n\n" . implode( "\n\n---\n\n", $injected ),
+					];
+					$messages[] = [ 'role' => 'user', 'content' => $userContent ];
+					continue;
 				}
 			}
 
