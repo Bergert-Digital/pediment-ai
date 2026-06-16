@@ -177,6 +177,63 @@ describe( 'applyToolCallsToEditor — addressing nested targets', () => {
 		expect( root[ 0 ].innerBlocks[ 1 ].attributes.content ).toBe( 'new' );
 	} );
 
+	it( 'moves a top-level section forward to the position the model intended (after target)', () => {
+		// Page: hero + three content sections. The model asks to move section A
+		// to *after* section B — the server VirtualTree resolves this to
+		// [hero, B, A, C]. The editor must land on the same order.
+		const { api, root } = makeStore( [
+			group( 'hero', [ leaf( 'h0', 'core/heading' ) ] ),
+			group( 'A', [ leaf( 'a0', 'core/heading' ) ] ),
+			group( 'B', [ leaf( 'b0', 'core/heading' ) ] ),
+			group( 'C', [ leaf( 'c0', 'core/heading' ) ] ),
+		] );
+
+		applyToolCallsToEditor( api, [
+			{
+				tool: 'move_block',
+				input: {
+					client_id: 'A',
+					target_client_id: 'B',
+					position: 'after',
+				},
+			},
+		] );
+
+		expect( root.map( ( n ) => n.clientId ) ).toEqual( [
+			'hero',
+			'B',
+			'A',
+			'C',
+		] );
+	} );
+
+	it( 'moves a top-level section backward (up) to the position the model intended (before target)', () => {
+		const { api, root } = makeStore( [
+			group( 'hero', [ leaf( 'h0', 'core/heading' ) ] ),
+			group( 'A', [ leaf( 'a0', 'core/heading' ) ] ),
+			group( 'B', [ leaf( 'b0', 'core/heading' ) ] ),
+			group( 'C', [ leaf( 'c0', 'core/heading' ) ] ),
+		] );
+
+		applyToolCallsToEditor( api, [
+			{
+				tool: 'move_block',
+				input: {
+					client_id: 'C',
+					target_client_id: 'A',
+					position: 'before',
+				},
+			},
+		] );
+
+		expect( root.map( ( n ) => n.clientId ) ).toEqual( [
+			'hero',
+			'C',
+			'A',
+			'B',
+		] );
+	} );
+
 	it( 'moves a nested block within its parent instead of silently doing nothing', () => {
 		const { api, root } = makeStore( [
 			group( 'sec1', [

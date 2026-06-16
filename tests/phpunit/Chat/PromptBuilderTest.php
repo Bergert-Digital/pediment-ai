@@ -54,7 +54,7 @@ class PromptBuilderTest extends \WP_UnitTestCase {
 	public function test_system_prompt_instructs_section_grouping(): void {
 		$pb = new \PedimentAi\Chat\PromptBuilder( [ 'core/group' => [ 'description' => 'A section container.' ] ] );
 		$prompt = $pb->systemPrompt();
-		$this->assertStringContainsString( 'starter-section', $prompt );
+		$this->assertStringContainsString( 'starter-band', $prompt );
 		$this->assertStringContainsString( 'core/group', $prompt );
 	}
 

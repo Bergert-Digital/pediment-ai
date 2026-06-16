@@ -144,10 +144,25 @@ export function applyToolCallsToEditor(
 				if ( targetIndex === -1 ) {
 					break;
 				}
-				const newIndex =
+				let newIndex =
 					c.input.position === 'before'
 						? targetIndex
 						: targetIndex + 1;
+				// moveBlockToPosition removes the block before inserting, so
+				// within ONE parent the destination index is relative to the
+				// list AFTER removal. When the block currently sits before its
+				// target, that removal shifts every later sibling (the target
+				// included) down one — without this correction a forward move
+				// overshoots by one and the section lands past where the model
+				// intended (the "lands in the wrong order" bug). This mirrors
+				// the server VirtualTree, which removes first, then re-locates
+				// the target.
+				if ( fromRoot === toRoot ) {
+					const fromIndex = siblings.indexOf( id );
+					if ( fromIndex !== -1 && fromIndex < newIndex ) {
+						newIndex -= 1;
+					}
+				}
 				api.moveBlockToPosition( id, fromRoot, toRoot, newIndex );
 				break;
 			}
