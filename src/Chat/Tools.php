@@ -193,6 +193,73 @@ final class Tools {
 	}
 
 	/**
+	 * Rewrite a model-emitted core/list that carries its items the legacy way — a `values`
+	 * (or `content`) HTML string of <li> elements instead of core/list-item innerBlocks —
+	 * into the modern innerBlocks shape the editor actually renders. Claude's training data
+	 * is full of the pre-v3 list format, so it reaches for it often; left as-is it produces
+	 * an empty list. Recurses so a list nested inside prose/media-text is repaired too. The
+	 * client applies the same repair (applyToolCallsCore) since it replays the raw tool input.
+	 *
+	 * @param array<string,mixed> $block A block spec {name, attributes, innerBlocks?}.
+	 * @return array<string,mixed>
+	 */
+	private function normalizeLegacyLists( array $block ): array {
+		$inner = is_array( $block['innerBlocks'] ?? null ) ? $block['innerBlocks'] : [];
+
+		if ( 'core/list' === ( $block['name'] ?? '' ) && empty( $inner ) ) {
+			$attrs  = is_array( $block['attributes'] ?? null ) ? $block['attributes'] : [];
+			$legacy = '';
+			foreach ( [ 'values', 'content' ] as $key ) {
+				if ( isset( $attrs[ $key ] ) && is_string( $attrs[ $key ] ) && '' !== trim( $attrs[ $key ] ) ) {
+					$legacy = $attrs[ $key ];
+					unset( $block['attributes'][ $key ] );
+					break;
+				}
+			}
+			$items = self::listItemsFromLegacyHtml( $legacy );
+			if ( ! empty( $items ) ) {
+				$block['innerBlocks'] = $items;
+				return $block;
+			}
+		}
+
+		if ( ! empty( $inner ) ) {
+			$block['innerBlocks'] = array_map( [ $this, 'normalizeLegacyLists' ], $inner );
+		}
+		return $block;
+	}
+
+	/**
+	 * Parse a legacy list `values` HTML string into core/list-item block specs. Each <li>
+	 * becomes one item, preserving its inline HTML (<strong> etc.). When the string has no
+	 * <li> at all but does carry text, it becomes a single item rather than vanishing.
+	 *
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function listItemsFromLegacyHtml( string $html ): array {
+		$html = trim( $html );
+		if ( '' === $html ) {
+			return [];
+		}
+		$items = [];
+		if ( preg_match_all( '#<li\b[^>]*>(.*?)</li>#is', $html, $matches ) ) {
+			foreach ( $matches[1] as $content ) {
+				$content = trim( $content );
+				if ( '' !== $content ) {
+					$items[] = [ 'name' => 'core/list-item', 'attributes' => [ 'content' => $content ], 'innerBlocks' => [] ];
+				}
+			}
+		}
+		if ( empty( $items ) ) {
+			$text = trim( wp_strip_all_tags( $html ) );
+			if ( '' !== $text ) {
+				$items[] = [ 'name' => 'core/list-item', 'attributes' => [ 'content' => $text ], 'innerBlocks' => [] ];
+			}
+		}
+		return $items;
+	}
+
+	/**
 	 * Apply a tool call to the virtual tree and return the synthetic tool_result payload.
 	 *
 	 * @param array<string,mixed> $input
@@ -221,6 +288,7 @@ final class Tools {
 	 */
 	private function applyInsert( VirtualTree $tree, array $input ): array {
 		$block = is_array( $input['block'] ?? null ) ? $input['block'] : [];
+		$block = $this->normalizeLegacyLists( $block );
 		$errors = $this->validator->validateNode( [
 			'name'        => (string) ( $block['name'] ?? '' ),
 			'attributes'  => is_array( $block['attributes']  ?? null ) ? $block['attributes']  : [],

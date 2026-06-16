@@ -91,12 +91,12 @@ async function openSidebarTab(page: Page, tab: 'edit-post/document' | 'edit-post
 }
 
 /**
- * Opens the Document sidebar, ensures the "AI Chat" PluginDocumentSettingPanel is expanded,
+ * Opens the Document sidebar, ensures the "Pediment AI" PluginDocumentSettingPanel is expanded,
  * and returns the chat panel locator (`.pediment-ai-chat`) for further interactions.
  */
 export async function openAIChatPanel(page: Page) {
   await openSidebarTab(page, 'edit-post/document');
-  const toggle = page.getByRole('button', { name: /^AI Chat$/i }).first();
+  const toggle = page.getByRole('button', { name: /^Pediment AI$/i }).first();
   await toggle.waitFor({ state: 'visible', timeout: 10_000 });
   if ((await toggle.getAttribute('aria-expanded')) === 'false') {
     await toggle.click();
@@ -107,12 +107,12 @@ export async function openAIChatPanel(page: Page) {
 }
 
 /**
- * Variant for the block-inspector AI Chat PanelBody (rendered by BlockChatPanel.tsx
+ * Variant for the block-inspector Pediment AI PanelBody (rendered by BlockChatPanel.tsx
  * when a block is selected). Use this after selecting a block in the canvas.
  */
 export async function openBlockAIChatPanel(page: Page) {
   await openSidebarTab(page, 'edit-post/block');
-  const toggle = page.getByRole('button', { name: /^AI Chat$/i }).first();
+  const toggle = page.getByRole('button', { name: /^Pediment AI$/i }).first();
   await toggle.waitFor({ state: 'visible', timeout: 10_000 });
   if ((await toggle.getAttribute('aria-expanded')) === 'false') {
     await toggle.click();

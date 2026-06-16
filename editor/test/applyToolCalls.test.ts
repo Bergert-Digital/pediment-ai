@@ -177,6 +177,63 @@ describe( 'applyToolCallsToEditor — addressing nested targets', () => {
 		expect( root[ 0 ].innerBlocks[ 1 ].attributes.content ).toBe( 'new' );
 	} );
 
+	it( 'moves a top-level section forward to the position the model intended (after target)', () => {
+		// Page: hero + three content sections. The model asks to move section A
+		// to *after* section B — the server VirtualTree resolves this to
+		// [hero, B, A, C]. The editor must land on the same order.
+		const { api, root } = makeStore( [
+			group( 'hero', [ leaf( 'h0', 'core/heading' ) ] ),
+			group( 'A', [ leaf( 'a0', 'core/heading' ) ] ),
+			group( 'B', [ leaf( 'b0', 'core/heading' ) ] ),
+			group( 'C', [ leaf( 'c0', 'core/heading' ) ] ),
+		] );
+
+		applyToolCallsToEditor( api, [
+			{
+				tool: 'move_block',
+				input: {
+					client_id: 'A',
+					target_client_id: 'B',
+					position: 'after',
+				},
+			},
+		] );
+
+		expect( root.map( ( n ) => n.clientId ) ).toEqual( [
+			'hero',
+			'B',
+			'A',
+			'C',
+		] );
+	} );
+
+	it( 'moves a top-level section backward (up) to the position the model intended (before target)', () => {
+		const { api, root } = makeStore( [
+			group( 'hero', [ leaf( 'h0', 'core/heading' ) ] ),
+			group( 'A', [ leaf( 'a0', 'core/heading' ) ] ),
+			group( 'B', [ leaf( 'b0', 'core/heading' ) ] ),
+			group( 'C', [ leaf( 'c0', 'core/heading' ) ] ),
+		] );
+
+		applyToolCallsToEditor( api, [
+			{
+				tool: 'move_block',
+				input: {
+					client_id: 'C',
+					target_client_id: 'A',
+					position: 'before',
+				},
+			},
+		] );
+
+		expect( root.map( ( n ) => n.clientId ) ).toEqual( [
+			'hero',
+			'C',
+			'A',
+			'B',
+		] );
+	} );
+
 	it( 'moves a nested block within its parent instead of silently doing nothing', () => {
 		const { api, root } = makeStore( [
 			group( 'sec1', [
@@ -202,5 +259,75 @@ describe( 'applyToolCallsToEditor — addressing nested targets', () => {
 			'h1',
 			'p1',
 		] );
+	} );
+} );
+
+describe( 'applyToolCallsToEditor — legacy list repair', () => {
+	it( 'converts a core/list with a legacy values string into list-item children', () => {
+		const { api, root } = makeStore( [] );
+
+		applyToolCallsToEditor( api, [
+			{
+				tool: 'insert_block',
+				input: {
+					position: 'end',
+					after_client_id: null,
+					block: {
+						name: 'core/list',
+						attributes: {
+							ordered: false,
+							values: '<li>First <strong>point</strong></li><li>Second point</li>',
+						},
+						innerBlocks: [],
+					},
+				},
+				output: { client_id: 'srv-1' },
+			},
+		] );
+
+		expect( root ).toHaveLength( 1 );
+		const list = root[ 0 ];
+		expect( list.name ).toBe( 'core/list' );
+		expect( list.attributes.values ).toBeUndefined();
+		expect( list.innerBlocks.map( ( n ) => n.name ) ).toEqual( [
+			'core/list-item',
+			'core/list-item',
+		] );
+		expect( list.innerBlocks[ 0 ].attributes.content ).toBe(
+			'First <strong>point</strong>'
+		);
+		expect( list.innerBlocks[ 1 ].attributes.content ).toBe(
+			'Second point'
+		);
+	} );
+
+	it( 'leaves a properly-formed list (list-item innerBlocks) untouched', () => {
+		const { api, root } = makeStore( [] );
+
+		applyToolCallsToEditor( api, [
+			{
+				tool: 'insert_block',
+				input: {
+					position: 'end',
+					after_client_id: null,
+					block: {
+						name: 'core/list',
+						attributes: { ordered: false },
+						innerBlocks: [
+							{
+								name: 'core/list-item',
+								attributes: { content: 'Already good' },
+							},
+						],
+					},
+				},
+				output: { client_id: 'srv-1' },
+			},
+		] );
+
+		expect( root[ 0 ].innerBlocks ).toHaveLength( 1 );
+		expect( root[ 0 ].innerBlocks[ 0 ].attributes.content ).toBe(
+			'Already good'
+		);
 	} );
 } );

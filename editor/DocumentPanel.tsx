@@ -10,7 +10,7 @@ export default function DocumentPanel() {
   return (
     <PluginDocumentSettingPanel
       name="pediment-ai-chat"
-      title={__('AI Chat', 'pediment-ai')}
+      title={__('Pediment AI', 'pediment-ai')}
       className="pediment-ai__panel"
     >
       <ChatPanel />

@@ -148,6 +148,57 @@ class ToolsTest extends \WP_UnitTestCase {
 		$this->assertSame( 'Full text',       $result['content']['attributes']['content'] );
 	}
 
+	private function listTools(): Tools {
+		$schema = [
+			'core/list'      => [
+				'attributes'         => [ 'ordered' => [ 'type' => 'boolean' ] ],
+				'allowsInnerBlocks'  => true,
+				'allowedChildBlocks' => [ 'core/list-item' ],
+			],
+			'core/list-item' => [
+				'attributes'        => [ 'content' => [ 'type' => 'string' ] ],
+				'allowsInnerBlocks' => false,
+				'requiresParent'    => [ 'core/list' ],
+			],
+		];
+		return new Tools( $schema, new Validator( $schema ) );
+	}
+
+	public function test_apply_insert_converts_legacy_list_values_into_list_items(): void {
+		// Claude often emits the pre-v3 list shape: items as an HTML `values` string
+		// with no innerBlocks. That renders empty; repair it into core/list-item children.
+		$tree   = new VirtualTree( [] );
+		$result = $this->listTools()->apply( $tree, 'insert_block', [
+			'after_client_id' => null,
+			'position'        => 'end',
+			'block'           => [
+				'name'        => 'core/list',
+				'attributes'  => [ 'ordered' => false, 'values' => '<li>First <strong>point</strong></li><li>Second point</li>' ],
+				'innerBlocks' => [],
+			],
+		] );
+		$this->assertFalse( $result['is_error'] ?? false, 'Legacy list should be repaired and accepted, not rejected.' );
+		$list = $tree->toArray()[0];
+		$this->assertSame( 'core/list', $list['name'] );
+		$this->assertArrayNotHasKey( 'values', $list['attributes'], 'The legacy values attribute must be dropped.' );
+		$this->assertCount( 2, $list['innerBlocks'] );
+		$this->assertSame( 'core/list-item', $list['innerBlocks'][0]['name'] );
+		$this->assertSame( 'First <strong>point</strong>', $list['innerBlocks'][0]['attributes']['content'] );
+		$this->assertSame( 'Second point', $list['innerBlocks'][1]['attributes']['content'] );
+	}
+
+	public function test_apply_insert_rejects_truly_empty_list(): void {
+		// No items and nothing to recover from — reject so the model re-emits with children.
+		$tree   = new VirtualTree( [] );
+		$result = $this->listTools()->apply( $tree, 'insert_block', [
+			'after_client_id' => null,
+			'position'        => 'end',
+			'block'           => [ 'name' => 'core/list', 'attributes' => [ 'ordered' => false ], 'innerBlocks' => [] ],
+		] );
+		$this->assertTrue( $result['is_error'] );
+		$this->assertStringContainsString( 'core/list-item', (string) $result['content'] );
+	}
+
 	public function test_apply_unknown_tool_returns_error(): void {
 		$tree   = new VirtualTree( [] );
 		$result = $this->tools()->apply( $tree, 'do_unspeakable_things', [] );

@@ -14,6 +14,7 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 	private Tools $tools;
 	private PromptBuilder $prompts;
 	private MockProvider $provider;
+	private \PedimentAi\Chat\PageFetcherInterface $fetcher;
 
 	public function setUp(): void {
 		parent::setUp();
@@ -27,13 +28,19 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 		$this->tools    = new Tools( $schema, new Validator( $schema ) );
 		$this->prompts  = new PromptBuilder( $schema );
 		$this->provider = new MockProvider( PEDIMENT_AI_PLUGIN_DIR . '/src/Mock/fixtures' );
+		// Default to a no-op fetcher so prefetch never touches the network in tests.
+		$this->fetcher = new class implements \PedimentAi\Chat\PageFetcherInterface {
+			public function fetch( string $url ): ?string {
+				return null;
+			}
+		};
 	}
 
 	public function test_run_records_text_delta_and_one_tool_call(): void {
 		$conv     = $this->store->getOrCreate( 1, 1 );
 		$turn_id  = $this->store->startAssistantTurn( $conv['id'] );
 
-		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $this->provider, 'claude-sonnet-4-6' );
+		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $this->provider, 'claude-sonnet-4-6', $this->fetcher );
 		$runner->run(
 			turn_id:       $turn_id,
 			tree:          new VirtualTree( [] ),
@@ -57,7 +64,7 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 			public function messages( array $args ) { return new \WP_Error( 'down', 'Down' ); }
 			public function stream_messages( array $args ) { return new \WP_Error( 'down', 'Down' ); }
 		};
-		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $broken, 'mock' );
+		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $broken, 'mock', $this->fetcher );
 		$runner->run(
 			turn_id:       $turn_id,
 			tree:          new VirtualTree( [] ),
@@ -76,7 +83,7 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 		$turn_id = $this->store->startAssistantTurn( $conv['id'] );
 		$this->store->abort( $turn_id );
 
-		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $this->provider, 'mock' );
+		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $this->provider, 'mock', $this->fetcher );
 		$runner->run(
 			turn_id:       $turn_id,
 			tree:          new VirtualTree( [] ),
@@ -130,7 +137,7 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 		$turn_id  = $this->store->startAssistantTurn( $conv['id'] );
 		$provider = $this->fakeProvider( 12 ); // 12 tool-use rounds, then end_turn.
 
-		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $provider, 'claude-sonnet-4-6' );
+		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $provider, 'claude-sonnet-4-6', $this->fetcher );
 		$runner->run(
 			turn_id:        $turn_id,
 			tree:           new VirtualTree( [] ),
@@ -150,7 +157,7 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 		$provider = $this->fakeProvider( 5 );
 
 		add_filter( 'pediment_ai_max_iterations', static fn() => 2 );
-		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $provider, 'm' );
+		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $provider, 'm', $this->fetcher );
 		$runner->run(
 			turn_id:        $turn_id,
 			tree:           new VirtualTree( [] ),
@@ -172,7 +179,7 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 		$provider = $this->fakeProvider( 0 ); // immediate end_turn.
 
 		add_filter( 'pediment_ai_max_tokens', static fn() => 12345 );
-		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $provider, 'm' );
+		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $provider, 'm', $this->fetcher );
 		$runner->run(
 			turn_id:        $turn_id,
 			tree:           new VirtualTree( [] ),
@@ -234,7 +241,7 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 			}
 		};
 
-		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $provider, 'm' );
+		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $provider, 'm', $this->fetcher );
 		$runner->run(
 			turn_id:        $turn_id,
 			tree:           new VirtualTree( [] ),
@@ -273,7 +280,7 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 			}
 		};
 
-		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $provider, 'm' );
+		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $provider, 'm', $this->fetcher );
 		$runner->run(
 			turn_id:        $turn_id,
 			tree:           new VirtualTree( [] ),
@@ -334,7 +341,7 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 			}
 		};
 
-		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $provider, 'claude-sonnet-4-6' );
+		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $provider, 'claude-sonnet-4-6', $this->fetcher );
 		$runner->run(
 			turn_id:        $turn_id,
 			tree:           new VirtualTree( [] ),
@@ -433,7 +440,7 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 			}
 		};
 
-		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $provider, 'claude-sonnet-4-6' );
+		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $provider, 'claude-sonnet-4-6', $this->fetcher );
 		$runner->run(
 			turn_id:        $turn_id,
 			tree:           new VirtualTree( [] ),
@@ -446,6 +453,242 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 		$this->assertSame( 'complete', $msg['status'], 'code_execution result must be echoed back, not orphaned' );
 		$this->assertSame( 2, $provider->calls );
 		$this->assertCount( 1, $msg['tool_calls'] );
+	}
+
+	public function test_web_fetch_error_code_is_recorded_for_diagnosis(): void {
+		$conv    = $this->store->getOrCreate( 1, 1 );
+		$turn_id = $this->store->startAssistantTurn( $conv['id'] );
+
+		// Anthropic's server-side web_fetch can fail to retrieve an origin its egress
+		// cannot reach (url_not_accessible) even when the page is reachable from this
+		// host. The model only paraphrases that in prose; the runner must persist the
+		// raw error_code so the failure is diagnosable after the fact.
+		// A null-returning fetcher keeps the server-side fallback from firing, so this
+		// test isolates the error-recording behavior (and never touches the network).
+		$fetcher = new class implements \PedimentAi\Chat\PageFetcherInterface {
+			public function fetch( string $url ): ?string { return null; }
+		};
+		$provider = new class implements \PedimentAi\Anthropic\ProviderInterface {
+			public function messages( array $args ) { return new \WP_Error( 'unused', 'unused' ); }
+			public function stream_messages( array $args ) {
+				return ( static function () {
+					yield [ 'type' => 'content_block_start', 'content_block' => [ 'type' => 'server_tool_use', 'id' => 'srv_fetch', 'name' => 'web_fetch' ] ];
+					yield [ 'type' => 'content_block_delta', 'delta' => [ 'type' => 'input_json_delta', 'partial_json' => '{"url":"https://www.berlinerteam.de/unser-angebot/"}' ] ];
+					yield [ 'type' => 'content_block_stop' ];
+					yield [ 'type' => 'content_block_start', 'content_block' => [ 'type' => 'web_fetch_tool_result', 'tool_use_id' => 'srv_fetch', 'content' => [ 'type' => 'web_fetch_tool_result_error', 'error_code' => 'url_not_accessible' ] ] ];
+					yield [ 'type' => 'content_block_stop' ];
+					yield [ 'type' => 'content_block_start', 'content_block' => [ 'type' => 'text' ] ];
+					yield [ 'type' => 'content_block_delta', 'delta' => [ 'type' => 'text_delta', 'text' => 'I could not reach that page.' ] ];
+					yield [ 'type' => 'content_block_stop' ];
+					yield [ 'type' => 'message_delta', 'delta' => [ 'stop_reason' => 'end_turn' ] ];
+				} )();
+			}
+		};
+
+		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $provider, 'claude-sonnet-4-6', $fetcher );
+		$runner->run(
+			turn_id:        $turn_id,
+			tree:           new VirtualTree( [] ),
+			history:        [],
+			selectedId:     null,
+			currentUserMsg: 'rebuild this page from https://www.berlinerteam.de/unser-angebot/'
+		);
+
+		$msg = $this->store->getMessage( $turn_id );
+		$this->assertCount( 1, $msg['tool_calls'], 'the web_fetch error must be recorded as a tool call' );
+		$call = $msg['tool_calls'][0];
+		$this->assertTrue( ! empty( $call['is_error'] ) );
+		$this->assertSame( 'web_fetch_tool_result', $call['tool'] );
+		$this->assertSame( 'url_not_accessible', $call['output']['error_code'] );
+	}
+
+	public function test_web_fetch_failure_recovers_via_server_side_fetch(): void {
+		$conv    = $this->store->getOrCreate( 1, 1 );
+		$turn_id = $this->store->startAssistantTurn( $conv['id'] );
+
+		$fetcher = new class implements \PedimentAi\Chat\PageFetcherInterface {
+			/** @var string[] */
+			public array $fetched = [];
+			public function fetch( string $url ): ?string {
+				$this->fetched[] = $url;
+				return "Change Management Beratung\n\nWandel gestalten mit System.";
+			}
+		};
+
+		// Round 1: hosted web_fetch errors (url_not_accessible) and the model gives up
+		// with end_turn. The runner must fetch the page server-side and re-prompt.
+		// Round 2: the injected page text must arrive as a user message; the model
+		// acknowledges and ends.
+		$provider = new class implements \PedimentAi\Anthropic\ProviderInterface {
+			public int $calls = 0;
+			/** @var string[] */
+			public array $userTextSeenRound2 = [];
+			public function messages( array $args ) { return new \WP_Error( 'unused', 'unused' ); }
+			public function stream_messages( array $args ) {
+				$this->calls++;
+				if ( 1 === $this->calls ) {
+					return ( static function () {
+						yield [ 'type' => 'content_block_start', 'content_block' => [ 'type' => 'server_tool_use', 'id' => 'srv_fetch', 'name' => 'web_fetch' ] ];
+						yield [ 'type' => 'content_block_delta', 'delta' => [ 'type' => 'input_json_delta', 'partial_json' => '{"url":"https://www.berlinerteam.de/unser-angebot/"}' ] ];
+						yield [ 'type' => 'content_block_stop' ];
+						yield [ 'type' => 'content_block_start', 'content_block' => [ 'type' => 'web_fetch_tool_result', 'tool_use_id' => 'srv_fetch', 'content' => [ 'type' => 'web_fetch_tool_result_error', 'error_code' => 'url_not_accessible' ] ] ];
+						yield [ 'type' => 'content_block_stop' ];
+						yield [ 'type' => 'content_block_start', 'content_block' => [ 'type' => 'text' ] ];
+						yield [ 'type' => 'content_block_delta', 'delta' => [ 'type' => 'text_delta', 'text' => 'I could not reach that page.' ] ];
+						yield [ 'type' => 'content_block_stop' ];
+						yield [ 'type' => 'message_delta', 'delta' => [ 'stop_reason' => 'end_turn' ] ];
+					} )();
+				}
+				foreach ( (array) ( $args['messages'] ?? [] ) as $m ) {
+					if ( 'user' !== ( $m['role'] ?? '' ) ) {
+						continue;
+					}
+					foreach ( (array) ( $m['content'] ?? [] ) as $b ) {
+						if ( 'text' === ( $b['type'] ?? '' ) ) {
+							$this->userTextSeenRound2[] = (string) $b['text'];
+						}
+					}
+				}
+				return ( static function () {
+					yield [ 'type' => 'content_block_start', 'content_block' => [ 'type' => 'text' ] ];
+					yield [ 'type' => 'content_block_delta', 'delta' => [ 'type' => 'text_delta', 'text' => 'Building from the fetched content.' ] ];
+					yield [ 'type' => 'content_block_stop' ];
+					yield [ 'type' => 'message_delta', 'delta' => [ 'stop_reason' => 'end_turn' ] ];
+				} )();
+			}
+		};
+
+		// No URL in the message, so the up-front prefetch is a no-op and this exercises
+		// the reactive net: a URL the model itself reaches for (here via web_fetch) and
+		// that hosted-fetch then fails on.
+		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $provider, 'claude-sonnet-4-6', $fetcher );
+		$runner->run(
+			turn_id:        $turn_id,
+			tree:           new VirtualTree( [] ),
+			history:        [],
+			selectedId:     null,
+			currentUserMsg: 'rebuild the berliner team change management page'
+		);
+
+		// The failed URL was fetched server-side exactly once.
+		$this->assertSame( [ 'https://www.berlinerteam.de/unser-angebot/' ], $fetcher->fetched );
+		// A second round ran and received the recovered page text.
+		$this->assertSame( 2, $provider->calls );
+		$joined = implode( "\n", $provider->userTextSeenRound2 );
+		$this->assertStringContainsString( 'Content fetched from https://www.berlinerteam.de/unser-angebot/', $joined );
+		$this->assertStringContainsString( 'Wandel gestalten mit System.', $joined );
+
+		$msg = $this->store->getMessage( $turn_id );
+		$this->assertSame( 'complete', $msg['status'] );
+		$tools = array_column( $msg['tool_calls'], 'tool' );
+		$this->assertContains( 'web_fetch_tool_result', $tools, 'the hosted-fetch error must be recorded' );
+		$this->assertContains( 'web_fetch_fallback', $tools, 'the server-side recovery must be recorded' );
+	}
+
+	public function test_url_in_message_is_prefetched_and_injected_up_front(): void {
+		$conv    = $this->store->getOrCreate( 1, 1 );
+		$turn_id = $this->store->startAssistantTurn( $conv['id'] );
+
+		$fetcher = new class implements \PedimentAi\Chat\PageFetcherInterface {
+			/** @var string[] */
+			public array $fetched = [];
+			public function fetch( string $url ): ?string {
+				$this->fetched[] = $url;
+				return "Change Management Beratung\n\nWandel gestalten mit System.";
+			}
+		};
+
+		// The model should receive the page content in its very first request and never
+		// need web_fetch. Capture that request's text, then end the turn.
+		$provider = new class implements \PedimentAi\Anthropic\ProviderInterface {
+			/** @var string[] */
+			public array $firstRequestText = [];
+			public function messages( array $args ) { return new \WP_Error( 'unused', 'unused' ); }
+			public function stream_messages( array $args ) {
+				if ( [] === $this->firstRequestText ) {
+					foreach ( (array) ( $args['messages'] ?? [] ) as $m ) {
+						foreach ( (array) ( $m['content'] ?? [] ) as $b ) {
+							if ( 'text' === ( $b['type'] ?? '' ) ) {
+								$this->firstRequestText[] = (string) $b['text'];
+							}
+						}
+					}
+				}
+				return ( static function () {
+					yield [ 'type' => 'content_block_start', 'content_block' => [ 'type' => 'text' ] ];
+					yield [ 'type' => 'content_block_delta', 'delta' => [ 'type' => 'text_delta', 'text' => 'Done.' ] ];
+					yield [ 'type' => 'content_block_stop' ];
+					yield [ 'type' => 'message_delta', 'delta' => [ 'stop_reason' => 'end_turn' ] ];
+				} )();
+			}
+		};
+
+		$url    = 'https://www.berlinerteam.de/unser-angebot/transformation-und-change/change-management/';
+		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $provider, 'claude-sonnet-4-6', $fetcher );
+		$runner->run(
+			turn_id:        $turn_id,
+			tree:           new VirtualTree( [] ),
+			history:        [],
+			selectedId:     null,
+			currentUserMsg: "Build a page based on {$url}"
+		);
+
+		// The URL in the message was fetched once, up front.
+		$this->assertSame( [ $url ], $fetcher->fetched );
+		// Its content rode in on the very first request, with a do-not-refetch instruction.
+		$joined = implode( "\n", $provider->firstRequestText );
+		$this->assertStringContainsString( 'Wandel gestalten mit System.', $joined );
+		$this->assertStringContainsString( 'Do NOT call web_fetch', $joined );
+	}
+
+	public function test_narration_across_rounds_is_separated_by_a_blank_line(): void {
+		$conv    = $this->store->getOrCreate( 1, 1 );
+		$turn_id = $this->store->startAssistantTurn( $conv['id'] );
+
+		// Three rounds, each opening with a sentence of narration before its tool
+		// call (rounds 1-2) or before ending (round 3). Without a separator the
+		// stored content reads "…content.Let me…" — period glued to the next
+		// sentence's capital. Each round's narration is one text block.
+		$provider = new class implements \PedimentAi\Anthropic\ProviderInterface {
+			public int $calls = 0;
+			public function messages( array $args ) { return new \WP_Error( 'unused', 'unused' ); }
+			public function stream_messages( array $args ) {
+				$this->calls++;
+				$n        = $this->calls;
+				$narration = [ 1 => 'The direct fetch failed.', 2 => 'Let me fetch the page.', 3 => 'Here is the result.' ][ $n ];
+				$emitTool  = $n < 3;
+				return ( static function () use ( $narration, $emitTool, $n ) {
+					yield [ 'type' => 'content_block_start', 'content_block' => [ 'type' => 'text' ] ];
+					yield [ 'type' => 'content_block_delta', 'delta' => [ 'type' => 'text_delta', 'text' => $narration ] ];
+					yield [ 'type' => 'content_block_stop' ];
+					if ( $emitTool ) {
+						yield [ 'type' => 'content_block_start', 'content_block' => [ 'type' => 'tool_use', 'id' => 'tu_' . $n, 'name' => 'insert_block' ] ];
+						yield [ 'type' => 'content_block_delta', 'delta' => [ 'type' => 'input_json_delta', 'partial_json' => '{"position":"end","block":{"name":"core/paragraph","attributes":{"content":"hi"}}}' ] ];
+						yield [ 'type' => 'content_block_stop' ];
+						yield [ 'type' => 'message_delta', 'delta' => [ 'stop_reason' => 'tool_use' ] ];
+					} else {
+						yield [ 'type' => 'message_delta', 'delta' => [ 'stop_reason' => 'end_turn' ] ];
+					}
+				} )();
+			}
+		};
+
+		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $provider, 'claude-sonnet-4-6', $this->fetcher );
+		$runner->run(
+			turn_id:        $turn_id,
+			tree:           new VirtualTree( [] ),
+			history:        [],
+			selectedId:     null,
+			currentUserMsg: 'rebuild this page'
+		);
+
+		$msg = $this->store->getMessage( $turn_id );
+		$this->assertSame( 'complete', $msg['status'] );
+		$this->assertSame(
+			"The direct fetch failed.\n\nLet me fetch the page.\n\nHere is the result.",
+			$msg['content'],
+			'Narration from each tool-use round must be separated by a blank line, not glued together.'
+		);
 	}
 
 	public function test_pause_turn_resends_assistant_without_a_new_user_message(): void {
@@ -478,7 +721,7 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 			}
 		};
 
-		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $provider, 'claude-sonnet-4-6' );
+		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $provider, 'claude-sonnet-4-6', $this->fetcher );
 		$runner->run(
 			turn_id:        $turn_id,
 			tree:           new VirtualTree( [] ),

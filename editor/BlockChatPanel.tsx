@@ -11,7 +11,7 @@ const withChat = createHigherOrderComponent((BlockEdit: any) => (props: any) => 
     <>
       <BlockEdit {...props} />
       <InspectorControls>
-        <PanelBody title={__('AI Chat', 'pediment-ai')} initialOpen={false} className="pediment-ai-chat__inspector">
+        <PanelBody title={__('Pediment AI', 'pediment-ai')} initialOpen={false} className="pediment-ai-chat__inspector">
           <ChatPanel hideSelectionChip />
         </PanelBody>
       </InspectorControls>

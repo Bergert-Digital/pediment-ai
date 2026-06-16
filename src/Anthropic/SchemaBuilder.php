@@ -41,9 +41,10 @@ final class SchemaBuilder {
 			'allowedChildBlocks' => [ 'core/list-item' ],
 		],
 		'core/list-item' => [
-			'description'       => 'A single list item.',
+			'description'       => 'A single list item. Its text goes in the `content` attribute.',
 			'attributes'        => [ 'content' => [ 'type' => 'string' ] ],
 			'allowsInnerBlocks' => false,
+			'requiresParent'    => [ 'core/list' ],
 		],
 		'core/image' => [
 			'description'       => 'A standalone image.',
@@ -53,6 +54,21 @@ final class SchemaBuilder {
 				'alt' => [ 'type' => 'string' ],
 			],
 			'allowsInnerBlocks' => false,
+		],
+		'core/buttons' => [
+			'description'        => 'A row of one or more buttons. Use for an inline call-to-action button inside a section — NOT pediment/cta, which is a whole standalone banner.',
+			'attributes'         => [],
+			'allowsInnerBlocks'  => true,
+			'allowedChildBlocks' => [ 'core/button' ],
+		],
+		'core/button' => [
+			'description'       => 'A single button. Its label goes in the `text` attribute; set `url` if you know the link target.',
+			'attributes'        => [
+				'text' => [ 'type' => 'string' ],
+				'url'  => [ 'type' => 'string' ],
+			],
+			'allowsInnerBlocks' => false,
+			'requiresParent'    => [ 'core/buttons' ],
 		],
 		'core/separator' => [
 			'description'       => 'A horizontal separator.',
@@ -67,6 +83,20 @@ final class SchemaBuilder {
 			],
 			'allowsInnerBlocks' => true,
 		],
+	];
+
+	/**
+	 * Content-column containers whose children are core blocks (which never declare a
+	 * `parent`, so the parent→child derivation below cannot discover them). Without an
+	 * explicit child list these get no [contains: …] hint in the prompt and the empty
+	 * container guard never fires, so the model emits them empty — a media-text with no
+	 * text, a prose with no copy. Declaring the children fixes both.
+	 *
+	 * @var array<string,array<int,string>>
+	 */
+	private const CONTENT_CONTAINERS = [
+		'pediment/media-text' => [ 'core/heading', 'core/paragraph', 'core/list', 'core/separator', 'core/buttons' ],
+		'pediment/prose'      => [ 'core/heading', 'core/paragraph', 'core/list', 'core/separator' ],
 	];
 
 	/**
@@ -156,6 +186,20 @@ final class SchemaBuilder {
 			unset( $blocks[ $name ]['onlyAllowedAsChildOf'] );
 		}
 
+		// Declare the core children of the content-column containers (only the ones that
+		// are actually registered). Restricts to children that exist in this schema so the
+		// prompt hint and validator never name a block the model cannot insert.
+		foreach ( self::CONTENT_CONTAINERS as $container => $children ) {
+			if ( ! isset( $blocks[ $container ] ) ) {
+				continue;
+			}
+			$allowed = array_values( array_filter( $children, static fn( $c ) => isset( $blocks[ $c ] ) ) );
+			if ( ! empty( $allowed ) ) {
+				$blocks[ $container ]['allowedChildBlocks'] = $allowed;
+				$blocks[ $container ]['allowsInnerBlocks']  = true;
+			}
+		}
+
 		$schema = [ 'blocks' => $blocks ];
 		set_transient( self::TRANSIENT_KEY, $schema, self::TRANSIENT_TTL );
 		return $schema;
@@ -172,6 +216,6 @@ final class SchemaBuilder {
 	 * Heuristic for blocks that allow inner blocks but don't declare it via supports.
 	 */
 	private function guessAllowsInnerBlocks( string $name ): bool {
-		return in_array( $name, [ 'pediment/faq', 'pediment/prose' ], true );
+		return in_array( $name, [ 'pediment/faq', 'pediment/prose', 'pediment/media-text' ], true );
 	}
 }
