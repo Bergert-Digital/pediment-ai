@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.4.0](https://github.com/Bergert-Digital/Pediment-AI/compare/v0.3.3...v0.4.0) (2026-06-16)
+
+
+### Features
+
+* **chat:** give the composer buttons, and steer CTA/media-text/band use ([caa3fe2](https://github.com/Bergert-Digital/Pediment-AI/commit/caa3fe213c64bf2105837fe2072101f4b7d416c7))
+* **chat:** prefetch URLs in the user message server-side, up front ([9e318da](https://github.com/Bergert-Digital/Pediment-AI/commit/9e318da7accfa8cc85e01dc6682827eafdddca1a))
+* **chat:** record server-tool error codes (e.g. web_fetch url_not_accessible) ([3cf5faf](https://github.com/Bergert-Digital/Pediment-AI/commit/3cf5faf3c2ff7e61c5d57147046a452bb9cb82be))
+* **chat:** recover from web_fetch url_not_accessible via server-side fetch ([d65bf58](https://github.com/Bergert-Digital/Pediment-AI/commit/d65bf58cde21b8474e8b2541ea5938cab561f6d6))
+* **chat:** server-side URL prefetch and a richer page composer ([#18](https://github.com/Bergert-Digital/Pediment-AI/issues/18)) ([4b5f5ac](https://github.com/Bergert-Digital/Pediment-AI/commit/4b5f5ac7ccb5ee499fdb1ea48c75f1b58ba25375))
+* **editor:** rename AI chat panel title to "Pediment AI" ([2eb66e0](https://github.com/Bergert-Digital/Pediment-AI/commit/2eb66e02995af673c76e9be1fd676a91aec8a927))
+
+
+### Bug Fixes
+
+* **ai-prompt:** keep section blocks as their own band ([74cf973](https://github.com/Bergert-Digital/Pediment-AI/commit/74cf973348ef6931672f6b46d759ea9c6befe4ea))
+* **chat:** build real lists and add media-text to the page composer ([4eff3a7](https://github.com/Bergert-Digital/Pediment-AI/commit/4eff3a75206713ea7aa570063acc8f2b7752d887))
+* **chat:** separate per-round narration with a blank line ([00c405a](https://github.com/Bergert-Digital/Pediment-AI/commit/00c405aeb1906f2d509c18e18ca834beac4cf3ad))
+* **chat:** stop the composer emitting empty media-text/prose containers ([fb9af41](https://github.com/Bergert-Digital/Pediment-AI/commit/fb9af41ebad6624ee41eeb49aff15a437da1fc2d))
+* **editor:** align section model to theme starter-band ([5add46e](https://github.com/Bergert-Digital/Pediment-AI/commit/5add46eef20101af133cb64cc59fc7bab5a483b7))
+
 ## [0.3.3](https://github.com/Bergert-Digital/Pediment-AI/compare/v0.3.2...v0.3.3) (2026-06-15)
 
 
