@@ -132,6 +132,20 @@ class ValidatorTest extends \WP_UnitTestCase {
 		$this->assertSame( [], $errors, 'A container populated with its nested children must validate clean.' );
 	}
 
+	// A container declaring allowedChildBlocks is meaningless empty — the composer
+	// cannot add children after it exists, so an empty grid/list is a dead block.
+	// Reject it so the model re-emits with its children nested in innerBlocks.
+	public function test_rejects_empty_container_that_requires_children(): void {
+		$errors = ( new Validator( $this->schema() ) )->validateNode(
+			[ 'name' => 'pediment/faq', 'attributes' => [], 'innerBlocks' => [] ]
+		);
+		$this->assertNotEmpty( $errors, 'A container that allows only specific children must not be empty.' );
+		$joined = implode( ' ', $errors );
+		$this->assertStringContainsString( 'pediment/faq', $joined );
+		$this->assertStringContainsString( 'pediment/faq-item', $joined );
+		$this->assertStringContainsStringIgnoringCase( 'innerBlocks', $joined );
+	}
+
 	public function test_full_tree_validate_flags_top_level_orphan_child(): void {
 		// validate() (whole-tree entry point) must also flag a child sitting at the root.
 		$errors = ( new Validator( $this->schema() ) )->validate( [

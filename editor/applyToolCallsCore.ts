@@ -34,11 +34,76 @@ export type EditorApi = {
 	normalize: () => void;
 };
 
+/**
+ * Turn a legacy list `values` HTML string ("<li>a</li><li>b</li>") into core/list-item
+ * specs. Mirrors the server-side Tools::listItemsFromLegacyHtml — the client replays the
+ * raw tool input, so the same repair has to run here for the editor to render real items.
+ * @param html
+ */
+function listItemsFromLegacyHtml( html: string ): any[] {
+	const trimmed = ( html ?? '' ).trim();
+	if ( ! trimmed ) {
+		return [];
+	}
+	const items: any[] = [];
+	const re = /<li\b[^>]*>([\s\S]*?)<\/li>/gi;
+	let m: RegExpExecArray | null;
+	while ( ( m = re.exec( trimmed ) ) !== null ) {
+		const content = m[ 1 ].trim();
+		if ( content ) {
+			items.push( {
+				name: 'core/list-item',
+				attributes: { content },
+			} );
+		}
+	}
+	if ( items.length === 0 ) {
+		const text = trimmed.replace( /<[^>]*>/g, '' ).trim();
+		if ( text ) {
+			items.push( { name: 'core/list-item', attributes: { content: text } } );
+		}
+	}
+	return items;
+}
+
+/**
+ * A core/list whose items arrived as a legacy `values`/`content` HTML string with no
+ * innerBlocks renders empty. Rewrite it to the modern core/list-item innerBlocks shape.
+ * @param spec
+ */
+function normalizeLegacyList( spec: any ): any {
+	if (
+		spec?.name !== 'core/list' ||
+		( spec.innerBlocks && spec.innerBlocks.length )
+	) {
+		return spec;
+	}
+	const attrs = { ...( spec.attributes ?? {} ) };
+	let legacy = '';
+	for ( const key of [ 'values', 'content' ] ) {
+		if ( typeof attrs[ key ] === 'string' && attrs[ key ].trim() ) {
+			legacy = attrs[ key ];
+			delete attrs[ key ];
+			break;
+		}
+	}
+	const items = listItemsFromLegacyHtml( legacy );
+	if ( ! items.length ) {
+		return spec;
+	}
+	return { ...spec, attributes: attrs, innerBlocks: items };
+}
+
 function createBlockFromSpec( api: EditorApi, spec: any ): any {
-	const inner = ( spec.innerBlocks ?? [] ).map( ( s: any ) =>
+	const normalized = normalizeLegacyList( spec );
+	const inner = ( normalized.innerBlocks ?? [] ).map( ( s: any ) =>
 		createBlockFromSpec( api, s )
 	);
-	return api.createBlock( spec.name, spec.attributes ?? {}, inner );
+	return api.createBlock(
+		normalized.name,
+		normalized.attributes ?? {},
+		inner
+	);
 }
 
 /**

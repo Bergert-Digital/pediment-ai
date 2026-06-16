@@ -261,3 +261,73 @@ describe( 'applyToolCallsToEditor — addressing nested targets', () => {
 		] );
 	} );
 } );
+
+describe( 'applyToolCallsToEditor — legacy list repair', () => {
+	it( 'converts a core/list with a legacy values string into list-item children', () => {
+		const { api, root } = makeStore( [] );
+
+		applyToolCallsToEditor( api, [
+			{
+				tool: 'insert_block',
+				input: {
+					position: 'end',
+					after_client_id: null,
+					block: {
+						name: 'core/list',
+						attributes: {
+							ordered: false,
+							values: '<li>First <strong>point</strong></li><li>Second point</li>',
+						},
+						innerBlocks: [],
+					},
+				},
+				output: { client_id: 'srv-1' },
+			},
+		] );
+
+		expect( root ).toHaveLength( 1 );
+		const list = root[ 0 ];
+		expect( list.name ).toBe( 'core/list' );
+		expect( list.attributes.values ).toBeUndefined();
+		expect( list.innerBlocks.map( ( n ) => n.name ) ).toEqual( [
+			'core/list-item',
+			'core/list-item',
+		] );
+		expect( list.innerBlocks[ 0 ].attributes.content ).toBe(
+			'First <strong>point</strong>'
+		);
+		expect( list.innerBlocks[ 1 ].attributes.content ).toBe(
+			'Second point'
+		);
+	} );
+
+	it( 'leaves a properly-formed list (list-item innerBlocks) untouched', () => {
+		const { api, root } = makeStore( [] );
+
+		applyToolCallsToEditor( api, [
+			{
+				tool: 'insert_block',
+				input: {
+					position: 'end',
+					after_client_id: null,
+					block: {
+						name: 'core/list',
+						attributes: { ordered: false },
+						innerBlocks: [
+							{
+								name: 'core/list-item',
+								attributes: { content: 'Already good' },
+							},
+						],
+					},
+				},
+				output: { client_id: 'srv-1' },
+			},
+		] );
+
+		expect( root[ 0 ].innerBlocks ).toHaveLength( 1 );
+		expect( root[ 0 ].innerBlocks[ 0 ].attributes.content ).toBe(
+			'Already good'
+		);
+	} );
+} );

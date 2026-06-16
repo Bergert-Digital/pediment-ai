@@ -41,9 +41,10 @@ final class SchemaBuilder {
 			'allowedChildBlocks' => [ 'core/list-item' ],
 		],
 		'core/list-item' => [
-			'description'       => 'A single list item.',
+			'description'       => 'A single list item. Its text goes in the `content` attribute.',
 			'attributes'        => [ 'content' => [ 'type' => 'string' ] ],
 			'allowsInnerBlocks' => false,
+			'requiresParent'    => [ 'core/list' ],
 		],
 		'core/image' => [
 			'description'       => 'A standalone image.',
@@ -172,6 +173,6 @@ final class SchemaBuilder {
 	 * Heuristic for blocks that allow inner blocks but don't declare it via supports.
 	 */
 	private function guessAllowsInnerBlocks( string $name ): bool {
-		return in_array( $name, [ 'pediment/faq', 'pediment/prose' ], true );
+		return in_array( $name, [ 'pediment/faq', 'pediment/prose', 'pediment/media-text' ], true );
 	}
 }

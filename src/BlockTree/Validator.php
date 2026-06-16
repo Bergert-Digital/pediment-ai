@@ -75,6 +75,19 @@ final class Validator {
 			}
 
 			if ( ! empty( $spec['allowedChildBlocks'] ) ) {
+				// A container whose only purpose is to hold specific children is a dead
+				// block when empty — the composer cannot add children after it exists, so
+				// an empty core/list, stat-grid, faq, etc. renders as a bare placeholder.
+				// Reject it and steer the model to nest the children in this same call.
+				if ( empty( $inner ) ) {
+					$errors[] = sprintf(
+						'%s: container "%s" is empty — nest at least one %s in its innerBlocks (children cannot be added after it is inserted)',
+						$here,
+						$name,
+						implode( ' or ', (array) $spec['allowedChildBlocks'] )
+					);
+				}
+
 				foreach ( $inner as $j => $child ) {
 					$cname = isset( $child['name'] ) ? (string) $child['name'] : '';
 					if ( '' !== $cname && ! in_array( $cname, (array) $spec['allowedChildBlocks'], true ) ) {
