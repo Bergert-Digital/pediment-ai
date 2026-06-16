@@ -448,6 +448,56 @@ class TurnRunnerTest extends \WP_UnitTestCase {
 		$this->assertCount( 1, $msg['tool_calls'] );
 	}
 
+	public function test_narration_across_rounds_is_separated_by_a_blank_line(): void {
+		$conv    = $this->store->getOrCreate( 1, 1 );
+		$turn_id = $this->store->startAssistantTurn( $conv['id'] );
+
+		// Three rounds, each opening with a sentence of narration before its tool
+		// call (rounds 1-2) or before ending (round 3). Without a separator the
+		// stored content reads "…content.Let me…" — period glued to the next
+		// sentence's capital. Each round's narration is one text block.
+		$provider = new class implements \PedimentAi\Anthropic\ProviderInterface {
+			public int $calls = 0;
+			public function messages( array $args ) { return new \WP_Error( 'unused', 'unused' ); }
+			public function stream_messages( array $args ) {
+				$this->calls++;
+				$n        = $this->calls;
+				$narration = [ 1 => 'The direct fetch failed.', 2 => 'Let me fetch the page.', 3 => 'Here is the result.' ][ $n ];
+				$emitTool  = $n < 3;
+				return ( static function () use ( $narration, $emitTool, $n ) {
+					yield [ 'type' => 'content_block_start', 'content_block' => [ 'type' => 'text' ] ];
+					yield [ 'type' => 'content_block_delta', 'delta' => [ 'type' => 'text_delta', 'text' => $narration ] ];
+					yield [ 'type' => 'content_block_stop' ];
+					if ( $emitTool ) {
+						yield [ 'type' => 'content_block_start', 'content_block' => [ 'type' => 'tool_use', 'id' => 'tu_' . $n, 'name' => 'insert_block' ] ];
+						yield [ 'type' => 'content_block_delta', 'delta' => [ 'type' => 'input_json_delta', 'partial_json' => '{"position":"end","block":{"name":"core/paragraph","attributes":{"content":"hi"}}}' ] ];
+						yield [ 'type' => 'content_block_stop' ];
+						yield [ 'type' => 'message_delta', 'delta' => [ 'stop_reason' => 'tool_use' ] ];
+					} else {
+						yield [ 'type' => 'message_delta', 'delta' => [ 'stop_reason' => 'end_turn' ] ];
+					}
+				} )();
+			}
+		};
+
+		$runner = new TurnRunner( $this->store, $this->tools, $this->prompts, $provider, 'claude-sonnet-4-6' );
+		$runner->run(
+			turn_id:        $turn_id,
+			tree:           new VirtualTree( [] ),
+			history:        [],
+			selectedId:     null,
+			currentUserMsg: 'rebuild this page'
+		);
+
+		$msg = $this->store->getMessage( $turn_id );
+		$this->assertSame( 'complete', $msg['status'] );
+		$this->assertSame(
+			"The direct fetch failed.\n\nLet me fetch the page.\n\nHere is the result.",
+			$msg['content'],
+			'Narration from each tool-use round must be separated by a blank line, not glued together.'
+		);
+	}
+
 	public function test_pause_turn_resends_assistant_without_a_new_user_message(): void {
 		$conv    = $this->store->getOrCreate( 1, 1 );
 		$turn_id = $this->store->startAssistantTurn( $conv['id'] );

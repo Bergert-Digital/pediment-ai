@@ -71,6 +71,13 @@ final class TurnRunner {
 		 */
 		$max_tokens = (int) apply_filters( 'pediment_ai_max_tokens', self::MAX_TOKENS );
 
+		// Tracks whether any narration has been streamed into the stored message
+		// yet — across the whole turn, not just this round. Used to bridge the
+		// boundary between successive text blocks with a blank line so a round's
+		// closing sentence and the next round's opening sentence don't render
+		// glued together ("…failed.Let me…").
+		$streamed_text = false;
+
 		for ( $i = 0; $i < $max_iterations; $i++ ) {
 			if ( $this->store->isAborted( $turn_id ) ) {
 				return;
@@ -138,7 +145,20 @@ final class TurnRunner {
 					$delta = $event['delta'] ?? [];
 					if ( 'text_delta' === ( $delta['type'] ?? '' ) ) {
 						$text = (string) ( $delta['text'] ?? '' );
-						$this->store->appendAssistantDelta( $turn_id, $text );
+						if ( '' !== $text ) {
+							// First non-empty chunk of a fresh text block while narration
+							// already streamed earlier this turn (a prior round, or a text
+							// block before a tool_use in this round): prepend a blank line so
+							// the boundary renders as a paragraph break, not a run-on. The
+							// model's own within-block newlines are left untouched.
+							// '' === $current_text marks the block's first delta (set to ''
+							// at content_block_start, non-empty once any text has landed).
+							if ( $streamed_text && '' === (string) $current_text ) {
+								$this->store->appendAssistantDelta( $turn_id, "\n\n" );
+							}
+							$this->store->appendAssistantDelta( $turn_id, $text );
+							$streamed_text = true;
+						}
 						// Aggregate per-block, not per-delta — Anthropic rejects empty text blocks
 						// and also dislikes many tiny adjacent text blocks when we echo them back.
 						if ( null === $current_text ) {
