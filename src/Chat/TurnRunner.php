@@ -18,6 +18,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class TurnRunner {
 	private const MAX_ITERATIONS = 20;
 	private const MAX_TOKENS     = 16384;
+	/** Most URLs to retrieve server-side from a single user message. */
+	private const MAX_PREFETCH = 3;
 
 	private readonly PageFetcherInterface $pageFetcher;
 
@@ -47,14 +49,31 @@ final class TurnRunner {
 		}
 
 		$messages = $this->prompts->historyToMessages( $history, 20 );
-		// The most recent user message — separately, so we can prepend tree context to it.
-		$messages[] = [
-			'role'    => 'user',
-			'content' => [
-				[ 'type' => 'text', 'text' => $this->prompts->contextMessage( $tree, $selectedId ) ],
-				[ 'type' => 'text', 'text' => $currentUserMsg ],
-			],
-		];
+
+		// Retrieve any URLs in the user's message from this host, up front. Anthropic's
+		// hosted web_fetch is blocked from some origins this server can reach — deep
+		// pages on certain sites return url_not_accessible — and the model then burns
+		// the turn flailing between web_search calls (and may build from a translated
+		// or tangential page it *can* reach). Handing it the real content first, with
+		// an instruction not to re-fetch, makes "build this page from <url>" reliable.
+		// A reactive net for URLs the model discovers later lives further down.
+		$prefetched = $this->prefetchUrls( $currentUserMsg );
+
+		// The most recent user message — built as blocks so tree context (and any
+		// prefetched reference content) sit alongside the user's text.
+		$userContent = [ [ 'type' => 'text', 'text' => $this->prompts->contextMessage( $tree, $selectedId ) ] ];
+		if ( [] !== $prefetched ) {
+			$sections = [];
+			foreach ( $prefetched as $url => $content ) {
+				$sections[] = "URL: {$url}\n\n{$content}";
+			}
+			$userContent[] = [
+				'type' => 'text',
+				'text' => 'The content below was fetched server-side from the URL(s) in the request. Use it directly to build the page — mirror its structure, copy, and tone. Do NOT call web_fetch on these URLs; you already have their content.' . "\n\n" . implode( "\n\n---\n\n", $sections ),
+			];
+		}
+		$userContent[] = [ 'type' => 'text', 'text' => $currentUserMsg ];
+		$messages[]    = [ 'role' => 'user', 'content' => $userContent ];
 
 		/**
 		 * Filter the maximum number of agentic tool-use round-trips per turn.
@@ -84,8 +103,9 @@ final class TurnRunner {
 		$streamed_text = false;
 
 		// URLs we have already retried server-side after a hosted web_fetch failure,
-		// so the fallback fires at most once per URL and cannot loop.
-		$fallbackAttempted = [];
+		// so the fallback fires at most once per URL and cannot loop. Seeded with the
+		// URLs already provided up front, so the reactive net never re-fetches them.
+		$fallbackAttempted = array_keys( $prefetched );
 
 		for ( $i = 0; $i < $max_iterations; $i++ ) {
 			if ( $this->store->isAborted( $turn_id ) ) {
@@ -370,6 +390,46 @@ final class TurnRunner {
 	 * @param array<string,mixed> $block A `*_tool_result` content block.
 	 * @return string|null The error_code, or null when the block did not error.
 	 */
+	/**
+	 * Retrieves up to self::MAX_PREFETCH URLs found in the user's message, server-side.
+	 *
+	 * @param string $message The user's message text.
+	 * @return array<string,string> Map of URL => readable page text; only successful fetches.
+	 */
+	private function prefetchUrls( string $message ): array {
+		$out = [];
+		foreach ( self::extractUrls( $message ) as $url ) {
+			$content = $this->pageFetcher->fetch( $url );
+			if ( null !== $content ) {
+				$out[ $url ] = $content;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Extracts up to self::MAX_PREFETCH distinct http(s) URLs from free text.
+	 *
+	 * @param string $text Arbitrary user text.
+	 * @return string[] Distinct URLs, trailing sentence punctuation trimmed.
+	 */
+	private static function extractUrls( string $text ): array {
+		if ( ! preg_match_all( '#https?://[^\s<>"\'\)]+#i', $text, $matches ) ) {
+			return [];
+		}
+		$urls = [];
+		foreach ( $matches[0] as $url ) {
+			$url = rtrim( $url, '.,;:!?' );
+			if ( '' !== $url && ! in_array( $url, $urls, true ) ) {
+				$urls[] = $url;
+			}
+			if ( count( $urls ) >= self::MAX_PREFETCH ) {
+				break;
+			}
+		}
+		return $urls;
+	}
+
 	private static function serverToolResultError( array $block ): ?string {
 		$content = $block['content'] ?? null;
 		if ( is_array( $content ) && isset( $content['error_code'] ) && is_string( $content['error_code'] ) ) {
