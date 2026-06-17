@@ -16,11 +16,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class ConversationStore {
 	private string $conversations;
 	private string $messages;
+	private string $attachments;
 
 	public function __construct() {
 		global $wpdb;
 		$this->conversations = $wpdb->prefix . 'pediment_ai_chat_conversations';
 		$this->messages      = $wpdb->prefix . 'pediment_ai_chat_messages';
+		$this->attachments   = $wpdb->prefix . 'pediment_ai_chat_attachments';
 	}
 
 	/**
@@ -76,11 +78,12 @@ final class ConversationStore {
 			),
 			ARRAY_A
 		);
+		$messages = array_map( [ $this, 'hydrate' ], $rows ?: [] );
 		return [
 			'id'       => (int) $header['id'],
 			'post_id'  => (int) $header['post_id'],
 			'user_id'  => (int) $header['user_id'],
-			'messages' => array_map( [ $this, 'hydrate' ], $rows ?: [] ),
+			'messages' => $this->attachImages( $messages ),
 		];
 	}
 
@@ -116,8 +119,43 @@ final class ConversationStore {
 		return $result;
 	}
 
-	public function appendUserMessage( int $conversation_id, string $content ): int {
-		return $this->insertMessage( $conversation_id, 'user', 'complete', $content );
+	/**
+	 * @param array<int,array{media_type:string,data:string}> $images
+	 */
+	public function appendUserMessage( int $conversation_id, string $content, array $images = [] ): int {
+		$id = $this->insertMessage( $conversation_id, 'user', 'complete', $content );
+		foreach ( $images as $img ) {
+			$this->insertAttachment( $id, (string) ( $img['media_type'] ?? '' ), (string) ( $img['data'] ?? '' ) );
+		}
+		return $id;
+	}
+
+	private function insertAttachment( int $message_id, string $media_type, string $data ): void {
+		global $wpdb;
+		$wpdb->insert( $this->attachments, [
+			'message_id' => $message_id,
+			'media_type' => $media_type,
+			'data'       => $data,
+			'created_at' => current_time( 'mysql', true ),
+		] );
+	}
+
+	/**
+	 * @return array<int,array{media_type:string,data:string}>
+	 */
+	public function getAttachments( int $message_id ): array {
+		global $wpdb;
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT media_type, data FROM {$this->attachments} WHERE message_id = %d ORDER BY id ASC",
+				$message_id
+			),
+			ARRAY_A
+		);
+		return array_map(
+			static fn( $r ) => [ 'media_type' => (string) $r['media_type'], 'data' => (string) $r['data'] ],
+			$rows ?: []
+		);
 	}
 
 	public function startAssistantTurn( int $conversation_id ): int {
@@ -205,7 +243,53 @@ final class ConversationStore {
 
 	public function clear( int $conversation_id ): void {
 		global $wpdb;
+		$wpdb->query(
+			$wpdb->prepare(
+				"DELETE a FROM {$this->attachments} a
+				 JOIN {$this->messages} m ON m.id = a.message_id
+				 WHERE m.conversation_id = %d",
+				$conversation_id
+			)
+		);
 		$wpdb->delete( $this->messages, [ 'conversation_id' => $conversation_id ] );
+	}
+
+	/**
+	 * Attach each user message's images. One query for the whole conversation.
+	 *
+	 * @param array<int,array<string,mixed>> $messages
+	 * @return array<int,array<string,mixed>>
+	 */
+	private function attachImages( array $messages ): array {
+		global $wpdb;
+		$userIds = [];
+		foreach ( $messages as $m ) {
+			if ( 'user' === ( $m['role'] ?? '' ) ) {
+				$userIds[] = (int) $m['id'];
+			}
+		}
+		if ( [] === $userIds ) {
+			return $messages;
+		}
+		$placeholders = implode( ',', array_fill( 0, count( $userIds ), '%d' ) );
+		$rows         = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT message_id, media_type, data FROM {$this->attachments} WHERE message_id IN ({$placeholders}) ORDER BY id ASC",
+				...$userIds
+			),
+			ARRAY_A
+		);
+		$byMessage = [];
+		foreach ( $rows ?: [] as $r ) {
+			$byMessage[ (int) $r['message_id'] ][] = [ 'media_type' => (string) $r['media_type'], 'data' => (string) $r['data'] ];
+		}
+		foreach ( $messages as &$m ) {
+			if ( 'user' === ( $m['role'] ?? '' ) ) {
+				$m['attachments'] = $byMessage[ (int) $m['id'] ] ?? [];
+			}
+		}
+		unset( $m );
+		return $messages;
 	}
 
 	private function insertMessage( int $conversation_id, string $role, string $status, string $content ): int {

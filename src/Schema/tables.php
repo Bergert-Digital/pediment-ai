@@ -88,5 +88,19 @@ function pediment_ai_install_tables(): void {
 	dbDelta( $sql_conv );
 	dbDelta( $sql_msgs );
 
+	$attachments = $wpdb->prefix . 'pediment_ai_chat_attachments';
+
+	$sql_attachments = "CREATE TABLE {$attachments} (
+		id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+		message_id bigint(20) UNSIGNED NOT NULL,
+		media_type varchar(40) NOT NULL,
+		data longtext NOT NULL,
+		created_at datetime NOT NULL,
+		PRIMARY KEY  (id),
+		KEY message_idx (message_id)
+	) {$charset};";
+
+	dbDelta( $sql_attachments );
+
 	update_option( 'pediment_ai_db_version', PEDIMENT_AI_VERSION );
 }
