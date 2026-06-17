@@ -42,7 +42,8 @@ final class TurnRunner {
 		VirtualTree $tree,
 		array $history,
 		?string $selectedId,
-		string $currentUserMsg
+		string $currentUserMsg,
+		array $images = []
 	): void {
 		if ( $this->store->isAborted( $turn_id ) ) {
 			return;
@@ -62,6 +63,23 @@ final class TurnRunner {
 		// The most recent user message — built as blocks so tree context (and any
 		// prefetched reference content) sit alongside the user's text.
 		$userContent = [ [ 'type' => 'text', 'text' => $this->prompts->contextMessage( $tree, $selectedId ) ] ];
+
+		// Image attachments lead the turn — Anthropic recommends images before text.
+		if ( [] !== $images ) {
+			$imageBlocks = [];
+			foreach ( $images as $img ) {
+				$imageBlocks[] = [
+					'type'   => 'image',
+					'source' => [
+						'type'       => 'base64',
+						'media_type' => (string) ( $img['media_type'] ?? '' ),
+						'data'       => (string) ( $img['data'] ?? '' ),
+					],
+				];
+			}
+			$userContent = array_merge( $imageBlocks, $userContent );
+		}
+
 		if ( [] !== $prefetched ) {
 			$sections = [];
 			foreach ( $prefetched as $url => $content ) {

@@ -110,8 +110,9 @@ final class ChatController {
 		$conversation_id = (int) $r->get_param( 'conversation_id' );
 		$message         = trim( (string) $r->get_param( 'message' ) );
 		$selected        = $r->get_param( 'selected_block' );
-		if ( '' === $message ) {
-			return new \WP_Error( 'pediment_ai_invalid', __( 'Message is required.', 'pediment-ai' ), [ 'status' => 400 ] );
+		$images = $this->normalizeImages( $r->get_param( 'images' ) );
+		if ( '' === $message && [] === $images ) {
+			return new \WP_Error( 'pediment_ai_invalid', __( 'A message or an image is required.', 'pediment-ai' ), [ 'status' => 400 ] );
 		}
 
 		$limits = (array) get_option( 'pediment_ai_rate_limits', \PedimentAi\Usage\RateLimiter::DEFAULTS );
@@ -120,7 +121,7 @@ final class ChatController {
 		}
 
 		$store   = new ConversationStore();
-		$store->appendUserMessage( $conversation_id, $message );
+		$user_message_id = $store->appendUserMessage( $conversation_id, $message, $images );
 		$turn_id = $store->startAssistantTurn( $conversation_id );
 
 		// Normalise the block_tree param once; reused in both dispatch branches.
@@ -137,7 +138,7 @@ final class ChatController {
 		$mode = (string) apply_filters( 'pediment_ai_dispatch_mode', 'auto' );
 
 		if ( 'inline' === $mode ) {
-			$this->processTurn( $turn_id, $conversation_id, new VirtualTree( $tree_source ), $selected, $message );
+			$this->processTurn( $turn_id, $conversation_id, new VirtualTree( $tree_source ), $selected, $message, $images );
 			return new \WP_REST_Response( [ 'turn_id' => $turn_id ], 202 );
 		}
 
@@ -146,6 +147,7 @@ final class ChatController {
 			'message'         => $message,
 			'selected_block'  => $selected,
 			'block_tree'      => $tree_source,
+			'user_message_id' => $user_message_id,
 		] );
 		$dispatcher->dispatch( $turn_id, $dispatcher->mintToken( $turn_id ) );
 
@@ -191,13 +193,15 @@ final class ChatController {
 		}
 
 		ignore_user_abort( true );
+		$images = $store->getAttachments( (int) ( $input['user_message_id'] ?? 0 ) );
 		$tree = new VirtualTree( is_array( $input['block_tree'] ?? null ) ? $input['block_tree'] : [] );
 		$this->processTurn(
 			$turn_id,
 			(int) $input['conversation_id'],
 			$tree,
 			$input['selected_block'] ?? null,
-			(string) $input['message']
+			(string) $input['message'],
+			$images
 		);
 		return new \WP_REST_Response( null, 204 );
 	}
@@ -207,7 +211,7 @@ final class ChatController {
 	/**
 	 * @param array<string,mixed>|null $selected
 	 */
-	public function processTurn( int $turn_id, int $conversation_id, VirtualTree $tree, $selected, string $message ): void {
+	public function processTurn( int $turn_id, int $conversation_id, VirtualTree $tree, $selected, string $message, array $images = [] ): void {
 		$store = new ConversationStore();
 		$conv  = $store->findById( $conversation_id );
 		// Build history (everything except the just-inserted user+assistant pair).
@@ -229,7 +233,34 @@ final class ChatController {
 			tree:           $tree,
 			history:        $history,
 			selectedId:     $selectedId,
-			currentUserMsg: $message
+			currentUserMsg: $message,
+			images:         $images
 		);
+	}
+
+	/**
+	 * @param mixed $raw
+	 * @return array<int,array{media_type:string,data:string}>
+	 */
+	private function normalizeImages( $raw ): array {
+		if ( ! is_array( $raw ) ) {
+			return [];
+		}
+		$allowed = [ 'image/png', 'image/jpeg', 'image/gif', 'image/webp' ];
+		$out     = [];
+		foreach ( $raw as $img ) {
+			if ( ! is_array( $img ) ) {
+				continue;
+			}
+			$type = isset( $img['media_type'] ) ? (string) $img['media_type'] : '';
+			$data = isset( $img['data'] ) ? (string) $img['data'] : '';
+			if ( in_array( $type, $allowed, true ) && '' !== $data ) {
+				$out[] = [ 'media_type' => $type, 'data' => $data ];
+			}
+			if ( count( $out ) >= 5 ) {
+				break;
+			}
+		}
+		return $out;
 	}
 }
