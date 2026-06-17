@@ -65,5 +65,7 @@ class TurnRunnerImagesTest extends \WP_UnitTestCase {
 		$this->assertSame( 'base64', $imageBlocks[0]['source']['type'] );
 		$this->assertSame( 'image/png', $imageBlocks[0]['source']['media_type'] );
 		$this->assertSame( 'AAAB', $imageBlocks[0]['source']['data'] );
+		// Image block must lead the user turn (array_merge puts images first).
+		$this->assertSame( 'image', $userMsg['content'][0]['type'] );
 	}
 }

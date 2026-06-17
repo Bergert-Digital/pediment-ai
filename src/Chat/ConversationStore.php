@@ -132,12 +132,15 @@ final class ConversationStore {
 
 	private function insertAttachment( int $message_id, string $media_type, string $data ): void {
 		global $wpdb;
-		$wpdb->insert( $this->attachments, [
+		$result = $wpdb->insert( $this->attachments, [
 			'message_id' => $message_id,
 			'media_type' => $media_type,
 			'data'       => $data,
 			'created_at' => current_time( 'mysql', true ),
 		] );
+		if ( false === $result ) {
+			error_log( 'pediment-ai: failed to persist chat attachment: ' . $wpdb->last_error );
+		}
 	}
 
 	/**

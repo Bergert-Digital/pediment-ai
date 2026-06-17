@@ -54,8 +54,12 @@ async function downscale(file: File): Promise<ChatImage> {
   canvas.height = h;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("no 2d context");
-  ctx.drawImage(bitmap, 0, 0, w, h);
-  // PNG keeps transparency; GIF/WebP/JPEG are re-encoded to JPEG (canvas can't emit GIF/WebP reliably).
-  const outType = file.type === "image/png" ? "image/png" : "image/jpeg";
-  return splitDataUri(canvas.toDataURL(outType, 0.85));
+  try {
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    // PNG keeps transparency; GIF/WebP/JPEG are re-encoded to JPEG (canvas can't emit GIF/WebP reliably).
+    const outType = file.type === "image/png" ? "image/png" : "image/jpeg";
+    return splitDataUri(canvas.toDataURL(outType, 0.85));
+  } finally {
+    bitmap.close();
+  }
 }
