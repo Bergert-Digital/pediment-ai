@@ -104,6 +104,8 @@ class PromptBuilderTest extends \WP_UnitTestCase {
 		$this->assertStringContainsString( 'pediment/section-head', $prompt );
 		// Let the theme style it — no custom color/spacing on composed blocks.
 		$this->assertStringContainsStringIgnoringCase( 'rely on the theme', $prompt );
+		// core/columns must have at least two children.
+		$this->assertStringContainsStringIgnoringCase( 'at least two core/column', $prompt );
 	}
 
 	public function test_system_prompt_is_filterable(): void {
