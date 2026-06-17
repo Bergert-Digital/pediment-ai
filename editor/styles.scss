@@ -18,7 +18,15 @@
   &__error    { color: #b32d2e; padding: 4px 12px; font-size: 12px; }
   &__composer { border-top: 1px solid #ddd; padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; }
   &__composer textarea { width: 100%; resize: vertical; font-size: 12px; }
-  &__composer-actions { display: flex; justify-content: flex-end; }
+  &__composer.is-dragging { outline: 2px dashed #007cba; outline-offset: -2px; }
+  &__composer-actions { display: flex; justify-content: space-between; align-items: center; }
+  &__composer-notice { font-size: 11px; color: #b32d2e; }
+  &__thumbs { display: flex; flex-wrap: wrap; gap: 6px; }
+  &__thumb { position: relative; width: 48px; height: 48px; }
+  &__thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; }
+  &__thumb button { position: absolute; top: -6px; right: -6px; width: 16px; height: 16px; line-height: 14px; border: 0; border-radius: 50%; background: #1e1e1e; color: #fff; font-size: 11px; padding: 0; cursor: pointer; }
+  &__msg-images { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  &__msg-images img { max-width: 120px; max-height: 120px; border-radius: 6px; }
   &__chip    { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: #fffbe6; border-top: 1px solid #f1d889; font-size: 11px; }
   &__chip-type    { font-weight: 600; }
   &__chip-preview { color: #555; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
