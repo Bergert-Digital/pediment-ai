@@ -108,6 +108,20 @@ class PromptBuilderTest extends \WP_UnitTestCase {
 		$this->assertStringContainsStringIgnoringCase( 'at least two core/column', $prompt );
 	}
 
+	public function test_system_prompt_has_a_forms_composition_rule(): void {
+		$pb     = new PromptBuilder( [ 'core/group' => [ 'description' => 'A section container.' ] ] );
+		$prompt = $pb->systemPrompt();
+
+		// A form is ONE pediment/form with nested pediment/form-field children.
+		$this->assertStringContainsStringIgnoringCase( 'Forms:', $prompt );
+		$this->assertStringContainsString( 'pediment/form-field', $prompt );
+		// An empty form must never be emitted.
+		$this->assertStringContainsStringIgnoringCase(
+			'no pediment/form-field children is rejected',
+			$prompt
+		);
+	}
+
 	public function test_system_prompt_is_filterable(): void {
 		$cb = static function ( $prompt, $schema ) {
 			return $prompt . "\n\nAcme brand voice: confident and concise.";
