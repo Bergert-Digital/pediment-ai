@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.5.0](https://github.com/Bergert-Digital/Pediment-AI/compare/v0.4.0...v0.5.0) (2026-06-30)
+
+
+### Features
+
+* **ai:** add a "Forms:" composition rule to the page composer ([a9cffa5](https://github.com/Bergert-Digital/Pediment-AI/commit/a9cffa5cce2e01ba32da82ce207736a3cfad2018)), closes [#20](https://github.com/Bergert-Digital/Pediment-AI/issues/20)
+* **ai:** add a "Forms:" composition rule to the page composer ([#21](https://github.com/Bergert-Digital/Pediment-AI/issues/21)) ([2c7300f](https://github.com/Bergert-Digital/Pediment-AI/commit/2c7300fa7867dd7399ac11ad509e8d1292445dca))
+* **ai:** allow core/columns + core/column for AI composition ([022f1d9](https://github.com/Bergert-Digital/Pediment-AI/commit/022f1d9681831d7bebe418c512f9f90b7761d237))
+* **ai:** guide the model to compose section types from primitives ([284393a](https://github.com/Bergert-Digital/Pediment-AI/commit/284393af2758de72dea5cea8c7f6f3f94a677238))
+* **chat:** add client-side image validate/downscale helper ([0af9c95](https://github.com/Bergert-Digital/Pediment-AI/commit/0af9c9552f89a7d48242cb106cd6fbdf9fa07d2b))
+* **chat:** image attachments + AI composition primitives ([#22](https://github.com/Bergert-Digital/Pediment-AI/issues/22)) ([3a3648f](https://github.com/Bergert-Digital/Pediment-AI/commit/3a3648fb1ded54c75a14f633fcfe429e317809d0))
+* **chat:** paste/upload/drop images in the composer ([9f9e19c](https://github.com/Bergert-Digital/Pediment-AI/commit/9f9e19c41796719c2de6dedfa4a892d1828c0d48))
+* **chat:** persist image attachments per user message ([e8cf915](https://github.com/Bergert-Digital/Pediment-AI/commit/e8cf91599e23626cd369c17fea2dab8c0ac73fff))
+* **chat:** send attached images as Anthropic image blocks ([d25502f](https://github.com/Bergert-Digital/Pediment-AI/commit/d25502f043c4ed98ed3f3da4dc25c502cb5a130d))
+
+
+### Bug Fixes
+
+* **ai:** require at least two columns when composing core/columns ([d3a10ea](https://github.com/Bergert-Digital/Pediment-AI/commit/d3a10ea3ce627584f5efb2c88cded8f7c110c752))
+* **chat:** harden image attachments — close bitmap, log insert failures, test ordering + validation ([fbf2505](https://github.com/Bergert-Digital/Pediment-AI/commit/fbf25052f7ac539b11ea890b660ebd8cc520ec6b))
+
 ## [0.4.0](https://github.com/Bergert-Digital/Pediment-AI/compare/v0.3.3...v0.4.0) (2026-06-16)
 
 
