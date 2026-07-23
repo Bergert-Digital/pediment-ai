@@ -28,6 +28,17 @@ final class Page {
 	}
 
 	public function addMenu(): void {
+		// When the Pediment parent theme exposes its shared settings hub, mount
+		// as a tab under Settings > Pediment Theme instead of adding our own
+		// top-level menu entry. The hub owns the page shell (.wrap/<h1>/nav) and
+		// invokes renderTabBody() for just our tab's body.
+		if ( function_exists( 'pediment_settings_register_tab' ) ) {
+			pediment_settings_register_tab( 'ai', __( 'AI', 'pediment-ai' ), [ $this, 'renderTabBody' ], 100 );
+			return; // Don't also register a standalone menu.
+		}
+
+		// Fallback: no hub (Pediment before the settings-hub release, or a
+		// non-Pediment theme). Keep the self-contained Settings > Pediment AI page.
 		add_options_page(
 			__( 'Pediment AI', 'pediment-ai' ),
 			__( 'Pediment AI', 'pediment-ai' ),
@@ -82,7 +93,28 @@ final class Page {
 		return $limits;
 	}
 
+	/**
+	 * Standalone page: our own .wrap/<h1> shell wrapping the shared body.
+	 * Used only on the fallback menu path (no Pediment settings hub).
+	 */
 	public function render(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		?>
+		<div class="wrap">
+			<h1><?php esc_html_e( 'Pediment AI Settings', 'pediment-ai' ); ?></h1>
+			<?php $this->renderTabBody(); ?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Tab body: everything inside the page shell. Emitted verbatim by the
+	 * Pediment settings hub (which supplies .wrap/<h1>/nav) and, on the
+	 * standalone fallback, by render() above. Must not emit page chrome.
+	 */
+	public function renderTabBody(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
@@ -91,8 +123,6 @@ final class Page {
 		$usage   = ( new Tracker() )->totalsThisMonth();
 		$env_key = defined( 'ANTHROPIC_API_KEY' );
 		?>
-		<div class="wrap">
-			<h1><?php esc_html_e( 'Pediment AI Settings', 'pediment-ai' ); ?></h1>
 			<form method="post" action="options.php">
 				<?php settings_fields( 'pediment_ai_group' ); ?>
 
@@ -137,7 +167,6 @@ final class Page {
 				<li>Web fetches: <?php echo esc_html( number_format_i18n( $usage['web_fetch_count'] ) ); ?></li>
 				<li>Estimated cost: $<?php echo esc_html( number_format_i18n( $usage['cost_usd'], 4 ) ); ?></li>
 			</ul>
-		</div>
 		<?php
 	}
 }
